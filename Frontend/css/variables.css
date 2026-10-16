@@ -1,0 +1,30 @@
+/* ==========================================================================
+   Ortenau Guesser — CSS Variables & Design Tokens
+   Theme: Black Forest Deep Pine, Rhine River Teal & Baden Gold
+   ========================================================================== */
+
+:root {
+  --bg-dark: #07140d;
+  --bg-surface: rgba(12, 31, 21, 0.88);
+  --bg-surface-solid: #0d2318;
+  --bg-card: rgba(16, 40, 27, 0.78);
+  --border-subtle: rgba(116, 198, 157, 0.2);
+  --border-gold: rgba(224, 178, 82, 0.45);
+
+  --accent-green: #2dc653;
+  --accent-green-hover: #25a244;
+  --accent-gold: #e0b252;
+  --accent-rhine: #48cae4;
+  --accent-danger: #ff595e;
+
+  --text-primary: #f1faee;
+  --text-secondary: #b7e4c7;
+  --text-muted: #74c69d;
+
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.65);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+}
+

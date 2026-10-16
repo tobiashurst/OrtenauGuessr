@@ -1,0 +1,255 @@
+/* ==========================================================================
+   Ortenau Guesser — In-Game HUD, Compass & Observations Drawer (#game-screen)
+   ========================================================================== */
+
+#game-screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Top HUD Bar */
+.game-hud-top {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.hud-left,
+.hud-right,
+.hud-compass-wrapper {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.hud-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.hud-btn:hover {
+  background: rgba(22, 54, 37, 0.95);
+  border-color: var(--accent-green);
+}
+
+.hud-fixed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(13, 35, 24, 0.86);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-gold);
+  color: var(--accent-gold);
+  padding: 0.48rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+}
+
+.lock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+}
+
+/* Compass Tape in Center HUD */
+.hud-compass-wrapper {
+  flex-direction: column;
+  gap: 0.15rem;
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.9rem;
+  box-shadow: var(--shadow-md);
+  min-width: 210px;
+}
+
+.compass-bar {
+  position: relative;
+  width: 180px;
+  height: 20px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.compass-tape {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  will-change: transform;
+  transition: transform 0.06s linear;
+}
+
+.compass-center-notch {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: var(--accent-gold);
+}
+
+.compass-readout {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  letter-spacing: 0.05em;
+}
+
+/* Right HUD Stat Boxes */
+.hud-stat-box {
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.38rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: var(--shadow-md);
+}
+
+.hud-stat-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.hud-stat-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* Sub Controls (Provider Badge + Field Observations) */
+.hud-sub-controls {
+  position: absolute;
+  top: 74px;
+  left: 16px;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  color: var(--accent-green);
+  border: 1px solid rgba(45, 198, 83, 0.4);
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+}
+
+.clue-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  color: var(--accent-gold);
+  border: 1px solid var(--border-gold);
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+
+.clue-pill:hover {
+  background: rgba(34, 65, 45, 0.95);
+}
+
+/* Collapsible Field Observations Drawer */
+.clue-drawer {
+  position: absolute;
+  top: 120px;
+  left: 16px;
+  width: 330px;
+  max-width: calc(100vw - 32px);
+  background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-gold);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+  z-index: 410;
+  box-shadow: var(--shadow-lg);
+}
+
+.clue-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(116, 198, 157, 0.2);
+}
+
+.clue-drawer-header h4 {
+  font-size: 0.84rem;
+  color: var(--accent-gold);
+}
+
+.clue-content {
+  display: flex;
+  column-gap: 0.45rem;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.clue-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: rgba(7, 20, 13, 0.55);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+}
+
+.clue-row strong {
+  color: var(--text-primary);
+}
+

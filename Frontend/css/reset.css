@@ -1,0 +1,106 @@
+/* ==========================================================================
+   Ortenau Guesser — Reset, Typography, Base Components & Screens
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Screen Management */
+.screen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.screen.active {
+  display: flex;
+  opacity: 1;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Global Button Styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.75rem 1.4rem;
+  border-radius: var(--radius-md);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.975);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.btn-primary {
+  background: var(--accent-green);
+  color: #04150b;
+  box-shadow: 0 4px 14px rgba(45, 198, 83, 0.38);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-green-hover);
+  box-shadow: 0 6px 20px rgba(45, 198, 83, 0.5);
+}
+
+.btn-lg {
+  padding: 0.9rem 1.6rem;
+  font-size: 1.05rem;
+  border-radius: var(--radius-md);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(116, 198, 157, 0.45);
+}
+
+.icon-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+}
+

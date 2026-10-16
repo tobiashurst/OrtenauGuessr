@@ -56,7 +56,6 @@
     currentLocation: null,
     currentGuess: null,
     isSubmitting: false,
-    activeViewMode: '360', // '360' | 'streetembed'
     minimapPinnedExpanded: false,
     compassAnimFrame: null
   };
@@ -90,16 +89,13 @@
     compassReadout: document.getElementById('compass-readout'),
     resetViewBtn: document.getElementById('reset-view-btn'),
 
-    viewMode360Btn: document.getElementById('view-mode-360'),
-    viewModeEmbedBtn: document.getElementById('view-mode-streetembed'),
+    providerBadge: document.getElementById('streetview-provider-badge'),
     toggleClueBtn: document.getElementById('toggle-clue-btn'),
     clueDrawer: document.getElementById('clue-drawer'),
     closeClueBtn: document.getElementById('close-clue-btn'),
     clueContent: document.getElementById('clue-content'),
 
     panoViewerEl: document.getElementById('pano-viewer'),
-    externalStreetView: document.getElementById('external-street-view'),
-    externalStreetContent: document.getElementById('external-street-content'),
     streetviewLoading: document.getElementById('streetview-loading'),
     loadingTitle: document.getElementById('loading-title'),
     loadingSubtitle: document.getElementById('loading-subtitle'),
@@ -172,10 +168,6 @@
     dom.backToMenuBtn.addEventListener('click', returnToMainMenu);
     dom.resetViewBtn.addEventListener('click', resetPanoramaHeading);
 
-    // View Mode Switcher
-    dom.viewMode360Btn.addEventListener('click', () => switchViewMode('360'));
-    dom.viewModeEmbedBtn.addEventListener('click', () => switchViewMode('streetembed'));
-
     // Field Observations Drawer
     dom.toggleClueBtn.addEventListener('click', () => {
       dom.clueDrawer.classList.toggle('hidden');
@@ -223,7 +215,7 @@
       returnToMainMenu();
     });
 
-    // Keyboard shortcut: Space / Enter on Result modal or Escape to close rules
+    // Keyboard shortcut: Escape to close rules
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !dom.rulesModal.classList.contains('hidden')) {
         dom.rulesModal.classList.add('hidden');
@@ -273,17 +265,29 @@
 
   /**
    * Normalizes location data from Backend/Geoservices so all OSM fields
-   * are consistently structured regardless of backend response nesting.
+   * and real 360° StreetView imagery metadata are consistently structured.
    */
   function normalizeLocationData(raw) {
     const lat = Number(raw.lat ?? raw.coordinates?.lat ?? 48.4708);
     const lng = Number(raw.lng ?? raw.lon ?? raw.coordinates?.lng ?? 7.9446);
     const osm = raw.osmContext || {};
+    const sv = raw.streetView || raw.panorama || {};
+    const img = raw.imagery || {};
 
     const roads = osm.roads || raw.baselineRoads || raw.roads || [];
     const buildings = osm.buildings || raw.baselineBuildings || raw.buildings || [];
     const signs = osm.streetSigns || osm.signs || raw.baselineSigns || raw.signs || [];
     const landmarks = osm.landmarks || raw.landmarks || [];
+
+    const imageUrl = img.imageUrl || sv.imageUrl || sv.panoramaxImageUrl || null;
+    const hdUrl = img.hdUrl || sv.hdUrl || imageUrl;
+    const panoId = img.panoId || sv.panoId || null;
+    const worldWidth = Number(img.worldWidth || sv.worldWidth || 2048);
+    const worldHeight = Number(img.worldHeight || sv.worldHeight || 1024);
+    const tileZoom = Number(img.tileZoom || sv.tileZoom || 2);
+    const is360 = Boolean(img.is360 === true || sv.is360 === true);
+    const provider = img.provider || sv.provider || (panoId ? 'Google Street View 360°' : 'Panoramax 360° StreetView');
+    const heading = Number(img.heading ?? raw.heading ?? raw.defaultHeading ?? 0);
 
     return {
       id: raw.id || raw.roundId || `ortenau-${lat.toFixed(4)}-${lng.toFixed(4)}`,
@@ -295,13 +299,34 @@
       postalCode: raw.postalCode || osm.postcode || '',
       terrain: raw.terrain || osm.terrain || 'foothills',
       elevation: Number(raw.elevation ?? osm.elevation ?? 210),
-      heading: Number(raw.heading ?? raw.defaultHeading ?? 0),
+      heading,
       description: raw.description || '',
       landmarks,
       roads,
       buildings,
       signs,
-      streetView: raw.streetView || raw.panorama || {}
+      imagery: {
+        imageUrl,
+        hdUrl,
+        panoId,
+        worldWidth,
+        worldHeight,
+        tileZoom,
+        is360,
+        provider,
+        heading
+      },
+      streetView: {
+        ...sv,
+        imageUrl,
+        hdUrl,
+        panoId,
+        worldWidth,
+        worldHeight,
+        tileZoom,
+        is360,
+        provider
+      }
     };
   }
 
@@ -462,7 +487,7 @@
     dom.hudScore.textContent = state.totalScore.toLocaleString();
   }
 
-  async function loadRound() {
+  async function loadRound(retryAttempt = 0) {
     state.currentGuess = null;
     state.isSubmitting = false;
 
@@ -481,21 +506,30 @@
     // Show loading screen over streetview
     dom.streetviewLoading.classList.remove('hidden');
     dom.loadingTitle.textContent = `Dropping into Ortenaukreis (Round ${state.currentRound})...`;
-    dom.loadingSubtitle.textContent = 'Querying OpenStreetMap Overpass context & rendering 360° fixed-point panorama';
+    dom.loadingSubtitle.textContent = 'Searching for real 360° StreetView panorama in Ortenau...';
 
     try {
       const locationData = await fetchRandomOrtenauLocation();
-      state.currentLocation = locationData;
       if (locationData.id) {
         state.usedLocationIds.push(locationData.id);
       }
 
+      // Strictly exclude any location that does not have a real 360° panorama
+      const img = locationData.imagery;
+      if (!img || img.is360 !== true || (!img.panoId && !img.imageUrl)) {
+        if (retryAttempt < 6) {
+          return loadRound(retryAttempt + 1);
+        }
+        throw new Error('No real 360° StreetView panorama available for this location.');
+      }
+
+      state.currentLocation = locationData;
       populateFieldObservations(locationData);
-      renderFixedPointStreetView(locationData);
+      await renderReal360StreetView(locationData, retryAttempt);
       centerGuessMapOnOrtenau();
     } catch (err) {
       console.error('Error loading round:', err);
-      dom.loadingTitle.textContent = 'Connection issue loading Ortenau location';
+      dom.loadingTitle.textContent = 'Connection issue loading Ortenau 360° location';
       dom.loadingSubtitle.textContent = err.message;
     }
   }
@@ -542,20 +576,18 @@
         <strong>${uniqueRoads.length ? escapeHtml(uniqueRoads.join(' / ')) : 'Local Municipal Road'}</strong>
       </div>
       <div class="clue-row">
-        <span>Movement Rule:</span>
-        <strong>Fixed Point (360° Rotation Only)</strong>
+        <span>Imagery Source:</span>
+        <strong>${escapeHtml(loc.imagery?.provider || 'Google Street View 360°')}</strong>
       </div>
     `;
   }
 
   // =========================================================================
-  // Fixed-Point 360° StreetView Renderer (Pannellum + OSM 3D Panorama Canvas)
+  // Real 360° Equirectangular StreetView Renderer (Pannellum 360° Spherical Viewer)
   // =========================================================================
-  function renderFixedPointStreetView(locationData) {
-    // 1. Generate high-res 4096x2048 360° equirectangular panorama from OSM data
-    const panoramaDataUrl = generateOsmEquirectangularPanorama(locationData);
+  async function renderReal360StreetView(locationData, retryAttempt = 0) {
+    stopCompassLoop();
 
-    // 2. Initialize or update Pannellum 360° viewer
     if (panoViewer) {
       try {
         panoViewer.destroy();
@@ -565,12 +597,59 @@
       panoViewer = null;
     }
 
+    const img = locationData.imagery || {};
+    if (img.is360 !== true || (!img.panoId && !img.imageUrl)) {
+      if (retryAttempt < 6) {
+        return loadRound(retryAttempt + 1);
+      }
+      return;
+    }
+
+    if (dom.providerBadge) {
+      dom.providerBadge.innerHTML = `<span>🌐 ${escapeHtml(img.provider || 'Google Street View 360°')}</span>`;
+    }
+
+    if (dom.streetviewStatusText) {
+      dom.streetviewStatusText.textContent =
+        'Real 360° StreetView • Drag anywhere to look around 360° • Scroll to zoom • Position is fixed';
+    }
+
+    let panoramaUrl = img.imageUrl || null;
+
+    // If this is a Google Street View panorama, stitch the 512x512 tiles into a full equirectangular panorama
+    if (img.panoId) {
+      dom.loadingSubtitle.textContent = `Stitching real 360° StreetView panorama in ${escapeHtml(locationData.municipality)}...`;
+      try {
+        panoramaUrl = await stitchGoogleStreetViewPanorama(
+          img.panoId,
+          img.worldWidth,
+          img.worldHeight,
+          img.tileZoom || 2
+        );
+      } catch (stitchErr) {
+        console.warn('Failed to stitch Google Street View tiles, retrying:', stitchErr);
+        if (retryAttempt < 6) {
+          return loadRound(retryAttempt + 1);
+        }
+      }
+    }
+
+    if (!panoramaUrl) {
+      if (retryAttempt < 6) {
+        return loadRound(retryAttempt + 1);
+      }
+      dom.loadingTitle.textContent = 'Unable to resolve 360° StreetView panorama';
+      dom.loadingSubtitle.textContent = 'Please try again.';
+      return;
+    }
+
     panoViewer = window.pannellum.viewer('pano-viewer', {
       type: 'equirectangular',
-      panorama: panoramaDataUrl,
+      panorama: panoramaUrl,
+      crossOrigin: 'anonymous',
       autoLoad: true,
       yaw: Number(locationData.heading) || 0,
-      pitch: 2,
+      pitch: 0,
       hfov: 95,
       minHfov: 45,
       maxHfov: 120,
@@ -586,72 +665,60 @@
       dom.streetviewLoading.classList.add('hidden');
     });
 
-    // Fallback timeout in case load event fires synchronously
-    setTimeout(() => {
-      dom.streetviewLoading.classList.add('hidden');
-    }, 350);
+    panoViewer.on('error', () => {
+      console.warn('360° panorama failed to load in viewer for location:', locationData.id);
+      if (retryAttempt < 6) {
+        loadRound(retryAttempt + 1);
+      } else {
+        dom.loadingTitle.textContent = 'Unable to load 360° StreetView image';
+        dom.loadingSubtitle.textContent = 'Please check your internet connection and try again.';
+      }
+    });
 
-    // 3. Prepare secondary External Street Cam / Photo view
-    prepareExternalStreetView(locationData);
-
-    // Ensure active view mode is applied
-    switchViewMode(state.activeViewMode);
-
-    // 4. Start live compass HUD synchronization
     startCompassLoop();
   }
 
-  function prepareExternalStreetView(loc) {
-    const sv = loc.streetView || {};
-    const heading = Number(loc.heading) || 0;
-    const googleEmbedUrl =
-      sv.googleStreetViewEmbedUrl ||
-      `https://maps.google.com/maps?q=&layer=c&cbll=${loc.lat},${loc.lng}&cbp=11,${heading},0,0,0&output=svembed`;
+  /**
+   * Stitches Google Street View 512x512 tiles from /api/streetview/tile
+   * into a seamless 2:1 equirectangular 360° panorama.
+   */
+  async function stitchGoogleStreetViewPanorama(panoId, worldWidth, worldHeight, zoom = 2) {
+    const canvas = document.createElement('canvas');
+    canvas.width = worldWidth || 2048;
+    canvas.height = worldHeight || 1024;
+    const ctx = canvas.getContext('2d');
 
-    if (sv.panoramaxImageUrl || sv.imageUrl) {
-      const imgUrl = sv.panoramaxImageUrl || sv.imageUrl;
-      dom.externalStreetContent.innerHTML = `
-        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#050e09;">
-          <img src="${escapeHtml(imgUrl)}" alt="Ortenau Street Level View" style="max-width:100%;max-height:100%;object-fit:contain;" />
-        </div>
-      `;
-    } else {
-      dom.externalStreetContent.innerHTML = `
-        <iframe
-          src="${escapeHtml(googleEmbedUrl)}"
-          title="Ortenau Fixed-Point Street Camera"
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-        ></iframe>
-      `;
-    }
-  }
+    const cols = Math.ceil(canvas.width / 512);
+    const rows = Math.ceil(canvas.height / 512);
 
-  function switchViewMode(mode) {
-    state.activeViewMode = mode;
-    if (mode === '360') {
-      dom.viewMode360Btn.classList.add('active');
-      dom.viewMode360Btn.setAttribute('aria-selected', 'true');
-      dom.viewModeEmbedBtn.classList.remove('active');
-      dom.viewModeEmbedBtn.setAttribute('aria-selected', 'false');
-      dom.externalStreetView.classList.add('hidden');
-      dom.panoViewerEl.classList.remove('hidden');
-      if (panoViewer && typeof panoViewer.resize === 'function') {
-        panoViewer.resize();
+    const tilePromises = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const p = new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            ctx.drawImage(img, x * 512, y * 512);
+            resolve();
+          };
+          img.onerror = () => {
+            // Partial edge tile may not exist; gracefully proceed
+            resolve();
+          };
+          img.src = `/api/streetview/tile?panoid=${encodeURIComponent(panoId)}&x=${x}&y=${y}&zoom=${zoom}`;
+        });
+        tilePromises.push(p);
       }
-    } else {
-      dom.viewModeEmbedBtn.classList.add('active');
-      dom.viewModeEmbedBtn.setAttribute('aria-selected', 'true');
-      dom.viewMode360Btn.classList.remove('active');
-      dom.viewMode360Btn.setAttribute('aria-selected', 'false');
-      dom.externalStreetView.classList.remove('hidden');
     }
+
+    await Promise.all(tilePromises);
+    return canvas.toDataURL('image/jpeg', 0.92);
   }
 
   function resetPanoramaHeading() {
     if (!panoViewer || !state.currentLocation) return;
     panoViewer.setYaw(Number(state.currentLocation.heading) || 0, 450);
-    panoViewer.setPitch(2, 450);
+    panoViewer.setPitch(0, 450);
     panoViewer.setHfov(95, 450);
   }
 
@@ -665,7 +732,6 @@
         const dirLabel = dirs[Math.round(heading / 45) % 8];
         dom.compassReadout.textContent = `${Math.round(heading)}° ${dirLabel}`;
 
-        // Translate compass tape smoothly
         const offsetPx = -((heading / 360) * 280);
         dom.compassTape.style.transform = `translateX(${offsetPx}px)`;
       }
@@ -679,493 +745,6 @@
       cancelAnimationFrame(state.compassAnimFrame);
       state.compassAnimFrame = null;
     }
-  }
-
-  // =========================================================================
-  // High-Resolution 360° Equirectangular Street-Level Panorama Generator
-  // Builds a 4096x2048 spherical panorama from real OpenStreetMap Overpass
-  // roads, buildings, street signs, elevation, and Black Forest / Rhine terrain
-  // =========================================================================
-  function generateOsmEquirectangularPanorama(loc) {
-    const W = 4096;
-    const H = 2048;
-    const horizonY = H * 0.5;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext('2d');
-
-    // Deterministic pseudo-random generator seeded by location coordinates
-    let seed = Math.abs(Math.floor(loc.lat * 100000 + loc.lng * 100000)) || 484708;
-    const rand = () => {
-      seed = (seed * 1664525 + 1013904223) % 4294967296;
-      return seed / 4294967296;
-    };
-
-    const isBlackForest =
-      loc.terrain === 'black_forest' || (loc.elevation && loc.elevation > 420);
-    const isVineyard =
-      loc.terrain === 'vineyards' || loc.terrain === 'foothills';
-
-    // -----------------------------------------------------------------------
-    // 1. Sky Dome Gradient (Zenith to Horizon)
-    // -----------------------------------------------------------------------
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
-    if (isBlackForest) {
-      skyGrad.addColorStop(0, '#163859');
-      skyGrad.addColorStop(0.55, '#4b83b4');
-      skyGrad.addColorStop(0.92, '#a7cde6');
-      skyGrad.addColorStop(1, '#d9ebf5');
-    } else {
-      skyGrad.addColorStop(0, '#1d4e89');
-      skyGrad.addColorStop(0.55, '#5fa8d3');
-      skyGrad.addColorStop(0.92, '#cae9ff');
-      skyGrad.addColorStop(1, '#f4f9fc');
-    }
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, W, horizonY + 4);
-
-    // Sun in the SSE sky (bearing ~155 deg, elevation +28 deg)
-    const sunX = (155 / 360) * W;
-    const sunY = horizonY - (28 / 90) * horizonY;
-    const sunGlow = ctx.createRadialGradient(sunX, sunY, 12, sunX, sunY, 340);
-    sunGlow.addColorStop(0, 'rgba(255, 252, 225, 0.98)');
-    sunGlow.addColorStop(0.2, 'rgba(255, 238, 175, 0.45)');
-    sunGlow.addColorStop(1, 'rgba(255, 238, 175, 0)');
-    ctx.fillStyle = sunGlow;
-    ctx.beginPath();
-    ctx.arc(sunX, sunY, 340, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Soft Cumulus Clouds across 360°
-    for (let i = 0; i < 28; i++) {
-      const cx = rand() * W;
-      const cy = horizonY * (0.38 + rand() * 0.45);
-      const cw = 140 + rand() * 260;
-      const ch = 26 + rand() * 44;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
-      drawWrappedEllipse(ctx, W, cx, cy, cw, ch);
-    }
-
-    // -----------------------------------------------------------------------
-    // 2. 360° Ortenau Topographic Mountain Ridges (Black Forest East, Vosges West)
-    // -----------------------------------------------------------------------
-    // Distant Mountain Layer (Hornisgrinde / Black Forest peak profile on East 40°..160°)
-    ctx.fillStyle = isBlackForest ? '#264637' : '#4a6b5d';
-    ctx.beginPath();
-    ctx.moveTo(0, horizonY);
-    for (let x = 0; x <= W; x += 16) {
-      const deg = (x / W) * 360;
-      // East (90°) has tall Black Forest mountains; West (270°) has flatter Rhine plain + distant Vosges
-      const eastPeak = Math.exp(-Math.pow((deg - 95) / 58, 2)) * (isBlackForest ? 210 : 135);
-      const southEastPeak = Math.exp(-Math.pow((deg - 145) / 45, 2)) * 95;
-      const westVosges = Math.exp(-Math.pow((deg - 275) / 55, 2)) * 45;
-      const ridgeNoise =
-        Math.sin(deg * (Math.PI / 180) * 7) * 14 +
-        Math.cos(deg * (Math.PI / 180) * 17) * 7;
-      const h = Math.max(12, eastPeak + southEastPeak + westVosges + ridgeNoise);
-      ctx.lineTo(x, horizonY - h);
-    }
-    ctx.lineTo(W, horizonY);
-    ctx.closePath();
-    ctx.fill();
-
-    // Mid-distance Forested / Vineyard Foothills
-    ctx.fillStyle = isVineyard ? '#3a6638' : '#1f422c';
-    ctx.beginPath();
-    ctx.moveTo(0, horizonY + 2);
-    for (let x = 0; x <= W; x += 12) {
-      const deg = (x / W) * 360;
-      const foothill =
-        Math.exp(-Math.pow((deg - 85) / 70, 2)) * 75 +
-        Math.exp(-Math.pow((deg - 200) / 65, 2)) * 40 +
-        Math.sin(deg * (Math.PI / 180) * 11) * 9 +
-        18;
-      ctx.lineTo(x, horizonY - foothill);
-    }
-    ctx.lineTo(W, horizonY + 2);
-    ctx.closePath();
-    ctx.fill();
-
-    // Draw Vineyard Terraces on sunny south/east foothills if in wine region
-    if (isVineyard) {
-      ctx.strokeStyle = 'rgba(138, 179, 86, 0.48)';
-      ctx.lineWidth = 3;
-      for (let row = 1; row <= 5; row++) {
-        ctx.beginPath();
-        for (let deg = 35; deg <= 145; deg += 2) {
-          const x = (deg / 360) * W;
-          const baseH = Math.exp(-Math.pow((deg - 85) / 70, 2)) * 65;
-          const y = horizonY - (baseH * (row / 6)) - 6;
-          if (deg === 35) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-    }
-
-    // -----------------------------------------------------------------------
-    // 3. Ground Plane & Surrounds (Horizon to Nadir)
-    // -----------------------------------------------------------------------
-    const primaryRoadSurface =
-      (loc.roads[0] && loc.roads[0].surface) || (isBlackForest ? 'asphalt' : 'paving_stones');
-    const isCobble =
-      primaryRoadSurface.includes('cobble') || primaryRoadSurface.includes('paving');
-
-    const groundGrad = ctx.createLinearGradient(0, horizonY, 0, H);
-    if (isCobble) {
-      groundGrad.addColorStop(0, '#59554f');
-      groundGrad.addColorStop(0.22, '#4a4640');
-      groundGrad.addColorStop(1, '#36332e');
-    } else {
-      groundGrad.addColorStop(0, '#3d5238');
-      groundGrad.addColorStop(0.12, '#3a423d');
-      groundGrad.addColorStop(0.35, '#2f3337');
-      groundGrad.addColorStop(1, '#232629');
-    }
-    ctx.fillStyle = groundGrad;
-    ctx.fillRect(0, horizonY, W, H - horizonY);
-
-    // Subtle cobblestone / ground texture rings near nadir
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 2;
-    for (let p = 8; p < 85; p += 6) {
-      const y = horizonY + (p / 90) * (H - horizonY);
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
-      ctx.stroke();
-    }
-
-    // -----------------------------------------------------------------------
-    // 4. Render OpenStreetMap Roads Radiating at Real Compass Bearings
-    // -----------------------------------------------------------------------
-    const roadsToRender = loc.roads.length > 0
-      ? loc.roads
-      : [
-          { name: loc.name || 'Landstraße', highway: 'secondary', bearing: loc.heading || 0, surface: 'asphalt' },
-          { name: loc.name || 'Landstraße', highway: 'secondary', bearing: ((loc.heading || 0) + 180) % 360, surface: 'asphalt' }
-        ];
-
-    roadsToRender.forEach((road) => {
-      const bearing = Number(road.bearing ?? 0);
-      const centerX = ((bearing % 360 + 360) % 360 / 360) * W;
-      const isPedestrian =
-        road.highway === 'pedestrian' || road.highway === 'footway' || road.surface === 'cobblestone';
-      const roadHalfWidthBottom = isPedestrian ? 340 : 440;
-      const roadHalfWidthHorizon = isPedestrian ? 18 : 26;
-
-      drawWrappedRoadCorridor(
-        ctx,
-        W,
-        H,
-        horizonY,
-        centerX,
-        roadHalfWidthHorizon,
-        roadHalfWidthBottom,
-        isPedestrian ? '#6b635b' : '#2d3136',
-        !isPedestrian
-      );
-    });
-
-    // -----------------------------------------------------------------------
-    // 5. Black Forest Pine Trees & Roadside Foliage
-    // -----------------------------------------------------------------------
-    const treeCount = isBlackForest ? 42 : 18;
-    for (let i = 0; i < treeCount; i++) {
-      const treeBearing = (i * (360 / treeCount) + rand() * 14) % 360;
-      // Avoid placing trees directly in the middle of a road bearing
-      const onRoad = roadsToRender.some((r) => angularDiff(treeBearing, Number(r.bearing || 0)) < 16);
-      if (onRoad) continue;
-
-      const treeX = (treeBearing / 360) * W;
-      const treeScale = 0.7 + rand() * 0.85;
-      drawPineTree(ctx, treeX, horizonY + 18, 95 * treeScale, 210 * treeScale);
-    }
-
-    // -----------------------------------------------------------------------
-    // 6. Render Real OpenStreetMap Buildings (Fachwerk, Townhalls, Towers)
-    // -----------------------------------------------------------------------
-    const buildingsToRender = [...(loc.buildings || [])].sort(
-      (a, b) => (Number(b.distance) || 30) - (Number(a.distance) || 30)
-    );
-
-    buildingsToRender.forEach((bldg) => {
-      const bearing = ((Number(bldg.bearing ?? 60) % 360) + 360) % 360;
-      const dist = Math.max(12, Number(bldg.distance) || 24);
-      const levels = Math.max(1, Number(bldg.levels) || 3);
-      const centerX = (bearing / 360) * W;
-
-      // Perspective sizing from distance & building levels
-      const bldgWidth = Math.min(480, Math.max(130, (5400 / dist)));
-      const bldgHeight = Math.min(390, Math.max(95, (levels * 1650) / dist));
-      const baseY = horizonY + Math.min(140, 1600 / dist);
-
-      drawOrtenauBuilding(ctx, W, {
-        centerX,
-        baseY,
-        width: bldgWidth,
-        height: bldgHeight,
-        levels,
-        color: bldg.color || '#ebd8c0',
-        roofShape: bldg.roofShape || 'gabled',
-        type: bldg.type || 'residential',
-        name: bldg.name || ''
-      });
-    });
-
-    // -----------------------------------------------------------------------
-    // 7. Render Authentic Street Name Signs & Bundesstraße Direction Signs
-    // -----------------------------------------------------------------------
-    const signsToRender = [...(loc.signs || [])];
-    if (signsToRender.length === 0 && roadsToRender.length > 0) {
-      signsToRender.push({
-        text: roadsToRender[0].name || 'Ortenaustraße',
-        subtext: loc.postalCode ? `${loc.postalCode} Ortenaukreis` : 'Ortenaukreis',
-        type: 'street_name',
-        bearing: ((Number(roadsToRender[0].bearing || 0) + 22) % 360)
-      });
-    }
-
-    signsToRender.forEach((sign) => {
-      const bearing = ((Number(sign.bearing ?? 35) % 360) + 360) % 360;
-      const signX = (bearing / 360) * W;
-      drawStreetSign(ctx, W, signX, horizonY, sign);
-    });
-
-    // -----------------------------------------------------------------------
-    // 8. Subtle Compass Horizon Ticks (N / E / S / W) for Spatial Orientation
-    // -----------------------------------------------------------------------
-    const cardinals = [
-      { deg: 0, label: 'N' },
-      { deg: 90, label: 'E • Schwarzwald' },
-      { deg: 180, label: 'S' },
-      { deg: 270, label: 'W • Rheintal' }
-    ];
-    cardinals.forEach((c) => {
-      const cx = (c.deg / 360) * W;
-      ctx.fillStyle = 'rgba(10, 28, 18, 0.62)';
-      ctx.strokeStyle = 'rgba(224, 178, 82, 0.65)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(cx - 58, horizonY - 195, 116, 26, 13);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = '#e0b252';
-      ctx.font = '700 13px "Space Grotesk", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(c.label, cx, horizonY - 182);
-    });
-
-    return canvas.toDataURL('image/jpeg', 0.9);
-  }
-
-  // Helper: Draw ellipse that wraps cleanly across 0/W seam
-  function drawWrappedEllipse(ctx, W, cx, cy, rx, ry) {
-    [-W, 0, W].forEach((offset) => {
-      const x = cx + offset;
-      if (x + rx < 0 || x - rx > W) return;
-      ctx.beginPath();
-      ctx.ellipse(x, cy, rx, ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-    });
-  }
-
-  // Helper: Draw perspective road corridor with center dashes & sidewalks
-  function drawWrappedRoadCorridor(ctx, W, H, horizonY, centerX, topHalfW, bottomHalfW, color, hasCenterLine) {
-    [-W, 0, W].forEach((offset) => {
-      const cx = centerX + offset;
-      if (cx + bottomHalfW < 0 || cx - bottomHalfW > W) return;
-
-      // Sidewalk / Shoulder
-      ctx.fillStyle = '#7f827c';
-      ctx.beginPath();
-      ctx.moveTo(cx - topHalfW * 1.25, horizonY + 2);
-      ctx.lineTo(cx + topHalfW * 1.25, horizonY + 2);
-      ctx.lineTo(cx + bottomHalfW * 1.16, H);
-      ctx.lineTo(cx - bottomHalfW * 1.16, H);
-      ctx.closePath();
-      ctx.fill();
-
-      // Road Surface
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(cx - topHalfW, horizonY + 2);
-      ctx.lineTo(cx + topHalfW, horizonY + 2);
-      ctx.lineTo(cx + bottomHalfW, H);
-      ctx.lineTo(cx - bottomHalfW, H);
-      ctx.closePath();
-      ctx.fill();
-
-      // White Center Line Dashes
-      if (hasCenterLine) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
-        ctx.lineWidth = 5;
-        ctx.setLineDash([28, 22]);
-        ctx.beginPath();
-        ctx.moveTo(cx, horizonY + 12);
-        ctx.lineTo(cx, H);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    });
-  }
-
-  // Helper: Draw Black Forest Conifer / Pine
-  function drawPineTree(ctx, x, baseY, width, height) {
-    // Trunk
-    ctx.fillStyle = '#3d2817';
-    ctx.fillRect(x - width * 0.08, baseY - height * 0.22, width * 0.16, height * 0.24);
-
-    // Layered pine tiers
-    const tiers = 4;
-    for (let t = 0; t < tiers; t++) {
-      const ratio = t / tiers;
-      const tierTop = baseY - height + ratio * (height * 0.55);
-      const tierBottom = tierTop + height * 0.36;
-      const tierHalfW = width * (0.28 + (1 - ratio * 0.5) * 0.32);
-
-      ctx.fillStyle = t % 2 === 0 ? '#143623' : '#1b432c';
-      ctx.beginPath();
-      ctx.moveTo(x, tierTop);
-      ctx.lineTo(x - tierHalfW, tierBottom);
-      ctx.lineTo(x + tierHalfW, tierBottom);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-
-  // Helper: Draw Ortenau Building (Half-Timbered Fachwerk, Baroque Townhall, etc.)
-  function drawOrtenauBuilding(ctx, W, b) {
-    [-W, 0, W].forEach((offset) => {
-      const cx = b.centerX + offset;
-      const left = cx - b.width / 2;
-      const top = b.baseY - b.height;
-      if (left + b.width < 0 || left > W) return;
-
-      // Wall Facade
-      ctx.fillStyle = b.color;
-      ctx.strokeStyle = 'rgba(30, 25, 20, 0.55)';
-      ctx.lineWidth = 2;
-      ctx.fillRect(left, top, b.width, b.height);
-      ctx.strokeRect(left, top, b.width, b.height);
-
-      // Half-Timbered (Fachwerk) beams for timber_frame / historic / winery buildings
-      if (b.type === 'timber_frame' || b.type === 'historic' || b.type === 'winery') {
-        ctx.strokeStyle = '#4a2c18';
-        ctx.lineWidth = 3.5;
-        for (let lv = 1; lv <= b.levels; lv++) {
-          const yLv = top + (b.height / b.levels) * lv;
-          ctx.beginPath();
-          ctx.moveTo(left, yLv);
-          ctx.lineTo(left + b.width, yLv);
-          ctx.stroke();
-        }
-        // Vertical & diagonal Fachwerk struts
-        const cols = 4;
-        for (let c = 1; c < cols; c++) {
-          const xCol = left + (b.width / cols) * c;
-          ctx.beginPath();
-          ctx.moveTo(xCol, top);
-          ctx.lineTo(xCol, top + b.height);
-          ctx.stroke();
-        }
-      }
-
-      // Pitched Roof (Gabled / Hipped / Pyramidal)
-      const roofH = b.type === 'historic_tower' ? b.height * 0.38 : b.height * 0.28;
-      ctx.fillStyle = '#8c3b2b'; // Classic Baden terracotta roof tiles
-      ctx.beginPath();
-      ctx.moveTo(left - 8, top);
-      ctx.lineTo(cx, top - roofH);
-      ctx.lineTo(left + b.width + 8, top);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Windows Grid
-      const winCols = Math.max(2, Math.min(5, Math.floor(b.width / 46)));
-      const levelH = b.height / b.levels;
-      for (let r = 0; r < b.levels; r++) {
-        for (let c = 0; c < winCols; c++) {
-          const wx = left + ((c + 0.5) / winCols) * b.width - 9;
-          const wy = top + r * levelH + levelH * 0.25;
-          ctx.fillStyle = '#293845';
-          ctx.fillRect(wx, wy, 18, levelH * 0.48);
-          ctx.strokeStyle = '#f8f9fa';
-          ctx.lineWidth = 1.5;
-          ctx.strokeRect(wx, wy, 18, levelH * 0.48);
-        }
-      }
-
-      // Facade Signboard (if named building/landmark)
-      if (b.name) {
-        ctx.fillStyle = 'rgba(20, 32, 24, 0.86)';
-        const labelW = Math.min(b.width - 12, 210);
-        ctx.fillRect(cx - labelW / 2, top + b.height - 34, labelW, 22);
-        ctx.fillStyle = '#f3e5ab';
-        ctx.font = '700 12px "Inter", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(b.name.slice(0, 26), cx, top + b.height - 23);
-      }
-    });
-  }
-
-  // Helper: Draw German Street Name Sign or Yellow Bundesstraße Direction Sign
-  function drawStreetSign(ctx, W, x, horizonY, sign) {
-    [-W, 0, W].forEach((offset) => {
-      const sx = x + offset;
-      if (sx < -250 || sx > W + 250) return;
-
-      const postTopY = horizonY - 22;
-      const postBottomY = horizonY + 145;
-
-      // Metal Signpost
-      ctx.fillStyle = '#7d858c';
-      ctx.fillRect(sx - 4, postTopY, 8, postBottomY - postTopY);
-
-      const isDirection = sign.type === 'direction';
-      const boxW = isDirection ? 270 : 195;
-      const boxH = sign.subtext ? 54 : 38;
-      const boxX = sx - boxW / 2;
-      const boxY = postTopY - boxH + 6;
-
-      // Sign Board Background (Yellow for German Bundesstraße direction, Blue/White for street name)
-      ctx.fillStyle = isDirection ? '#f4c430' : '#1d3557';
-      ctx.strokeStyle = isDirection ? '#111111' : '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.roundRect(boxX, boxY, boxW, boxH, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      // Primary Text
-      ctx.fillStyle = isDirection ? '#111111' : '#ffffff';
-      ctx.font = '700 15px "Inter", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(
-        String(sign.text || 'Ortenau').slice(0, 32),
-        sx,
-        sign.subtext ? boxY + 19 : boxY + boxH / 2
-      );
-
-      // Subtext
-      if (sign.subtext) {
-        ctx.fillStyle = isDirection ? '#222222' : '#cbe5ff';
-        ctx.font = '600 12px "Inter", sans-serif';
-        ctx.fillText(String(sign.subtext).slice(0, 34), sx, boxY + 39);
-      }
-    });
-  }
-
-  function angularDiff(a, b) {
-    const d = Math.abs(a - b) % 360;
-    return d > 180 ? 360 - d : d;
   }
 
   // =========================================================================

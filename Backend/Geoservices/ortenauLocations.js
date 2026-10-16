@@ -1,927 +1,908 @@
 /**
- * Ortenau Guesser - Authentic Ortenaukreis (Baden-Württemberg, Germany) Geodata
- * OpenStreetMap Administrative Relation ID: 62608 (Ortenaukreis)
+ * Ortenau Guesser - Region Boundaries & Diverse Location Pool (Ortenaukreis, Baden-Württemberg)
+ * Covers all 51 municipalities and key valleys/passes of the Ortenaukreis (OSM Relation ID: 62611)
+ * plus dynamic random coordinate sampling inside the Ortenaukreis polygon for maximum variety.
  */
 
 const ORTENAU_REGION = {
-  name: 'Ortenaukreis',
-  displayName: 'Ortenau (Ortenaukreis), Baden-Württemberg, Germany',
+  name: 'Ortenau (Ortenaukreis)',
+  shortName: 'Ortenaukreis',
   state: 'Baden-Württemberg',
   country: 'Germany',
-  osmRelationId: 62608,
+  osmRelationId: 62611,
   center: {
-    lat: 48.4719,
-    lng: 7.9498
+    lat: 48.4550,
+    lng: 7.9850
   },
+  defaultZoom: 10,
+  minZoom: 9,
+  maxZoom: 18,
+  // Bounding box of Ortenaukreis (Rhine in the West, Black Forest crest in the East, Achern/Rheinau North, Rust/Ettenheim/Schuttertal South)
   bounds: {
-    south: 48.18,
-    west: 7.75,
     north: 48.72,
-    east: 8.35
+    south: 48.18,
+    east: 8.35,
+    west: 7.70
   },
-  // Multi-point boundary polygon approximating Ortenaukreis [lat, lng]
+  // Approximate polygon of Ortenaukreis [lat, lng] clockwise for boundary rendering & point-in-polygon checks
   polygon: [
-    [48.705, 7.915], // Rheinau (north-west Rhine border)
-    [48.685, 8.015], // Achern / Sasbach
-    [48.655, 8.155], // Sasbachwalden / Hornisgrinde north
-    [48.605, 8.215], // Seebach / Mummelsee / Hornisgrinde
-    [48.545, 8.245], // Oppenau / Zuflucht
-    [48.445, 8.335], // Bad Peterstal-Griesbach (east Black Forest border)
-    [48.325, 8.310], // Wolfach / Schiltach border
-    [48.205, 8.265], // Hornberg / Gutach (south-east)
-    [48.195, 8.120], // Mühlenbach / Schweighausen
-    [48.220, 7.945], // Schuttertal / EttenheimMünster
-    [48.245, 7.795], // Ettenheim / Ringsheim
-    [48.260, 7.715], // Rust / Kappel-Grafenhausen (Rhine south-west)
-    [48.365, 7.735], // Nonnenweier / Meißenheim (Rhine)
-    [48.455, 7.770], // Neuried / Altenheim (Rhine)
-    [48.575, 7.800], // Kehl am Rhein (Rhine west border)
-    [48.665, 7.880], // Rheinau-Freistett (Rhine)
-    [48.705, 7.915]  // Close polygon
+    [48.695, 7.925], // Rheinau (North Rhine)
+    [48.685, 8.020], // Achern North
+    [48.650, 8.135], // Sasbachwalden / Hornisgrinde North-West
+    [48.605, 8.205], // Seebach / Hornisgrinde / Mummelsee
+    [48.520, 8.245], // Oppenau / Lierbach
+    [48.445, 8.320], // Bad Peterstal-Griesbach (East)
+    [48.325, 8.285], // Wolfach / Kirnbach
+    [48.205, 8.245], // Hornberg (South-East)
+    [48.195, 8.110], // Mühlenbach / Hofstetten
+    [48.210, 7.965], // Schuttertal / Dörlinbach
+    [48.220, 7.820], // Ettenheim / Ringsheim
+    [48.235, 7.715], // Rust / Taubergießen (South-West Rhine)
+    [48.295, 7.710], // Kappel-Grafenhausen (Rhine crossing Rhinau)
+    [48.360, 7.730], // Schwanau / Meißenheim (Rhine)
+    [48.465, 7.775], // Neuried / Altenheim (Rhine)
+    [48.575, 7.800], // Kehl (Rhine border to Strasbourg)
+    [48.655, 7.865], // Rheinau-Freistett
+    [48.695, 7.925]
   ],
-  tileServerUrl: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  tileAttribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  municipalities: [
-    'Offenburg',
-    'Lahr/Schwarzwald',
-    'Kehl',
-    'Achern',
-    'Oberkirch',
-    'Gengenbach',
-    'Haslach im Kinzigtal',
-    'Wolfach',
-    'Hausach',
-    'Hornberg',
-    'Zell am Harmersbach',
-    'Ettenheim',
-    'Rust',
-    'Rheinau',
-    'Oppenau',
-    'Sasbachwalden',
-    'Durbach',
-    'Kappelrodeck',
-    'Bad Peterstal-Griesbach',
-    'Appenweier',
-    'Schutterwald',
-    'Neuried',
-    'Meißenheim',
-    'Friesenheim',
-    'Seelbach'
-  ]
+  tileServer: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }
 };
 
 /**
- * Checks whether a coordinate lies within the Ortenau bounding box and boundary polygon.
+ * Ray-casting point-in-polygon check + bounding box check to ensure any coordinate
+ * is strictly within the Ortenaukreis region.
  */
 function isPointInOrtenau(lat, lng) {
   if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) {
     return false;
   }
-
-  const { south, west, north, east } = ORTENAU_REGION.bounds;
-  // Allow slight margin around the Rhine border near Rust/Kehl (7.70 to 8.36)
-  if (lat < south - 0.02 || lat > north + 0.02 || lng < 7.70 || lng > east + 0.02) {
+  const { north, south, east, west } = ORTENAU_REGION.bounds;
+  if (lat < south || lat > north || lng < west || lng > east) {
     return false;
   }
 
-  // Ray-casting point-in-polygon check
   const poly = ORTENAU_REGION.polygon;
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const xi = poly[i][0], yi = poly[i][1];
-    const xj = poly[j][0], yj = poly[j][1];
-    const intersect = ((yi > lng) !== (yj > lng)) &&
-      (lat < (xj - xi) * (lng - yi) / ((yj - yi) || 1e-9) + xi);
+    const yi = poly[i][0];
+    const xi = poly[i][1];
+    const yj = poly[j][0];
+    const xj = poly[j][1];
+
+    const intersect =
+      yi > lat !== yj > lat &&
+      lng < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
     if (intersect) inside = !inside;
   }
-
-  // Fallback to bounding box if right on the Rhine edge
-  return inside || (lat >= south && lat <= north && lng >= west && lng <= east);
+  return inside;
 }
 
 /**
- * 25 curated, authentic street-level coordinates strictly inside Ortenaukreis,
- * enriched with baseline OpenStreetMap road, building, and street sign context.
+ * Generate a random geographic coordinate strictly inside the Ortenaukreis polygon.
+ */
+function generateRandomPointInOrtenau() {
+  const { north, south, east, west } = ORTENAU_REGION.bounds;
+  for (let i = 0; i < 100; i++) {
+    const lat = Number((south + Math.random() * (north - south)).toFixed(6));
+    const lng = Number((west + Math.random() * (east - west)).toFixed(6));
+    if (isPointInOrtenau(lat, lng)) {
+      return { lat, lng };
+    }
+  }
+  return { lat: 48.4719, lng: 7.9446 };
+}
+
+/**
+ * Comprehensive seed pool covering all 51 municipalities and sub-regions of the Ortenaukreis.
+ * Used along with random coordinate jittering and dynamic polygon sampling to discover real
+ * 360° Google Street View (and Panoramax 360° fallback) panoramas with maximum variety.
  */
 const ORTENAU_LOCATIONS = [
+  // --- Central Ortenau / Offenburg & Surroundings ---
   {
-    id: 'ortenau-offenburg-marktplatz',
-    lat: 48.4708,
-    lng: 7.9446,
-    name: 'Hauptstraße / Fischmarkt',
+    id: 'ortenau-offenburg-zentrum',
+    name: 'Offenburg Innenstadt',
     municipality: 'Offenburg',
     postalCode: '77652',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
+    lat: 48.4719,
+    lng: 7.9446,
+    defaultHeading: 180,
+    terrain: 'foothills',
     elevation: 163,
-    defaultHeading: 15,
-    description: 'Historic Baroque town center of Offenburg at the intersection of Hauptstraße and Steinstraße.',
-    landmarks: ['Historisches Rathaus Offenburg', 'Ursulasäule', 'Salmen Offenburg'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 15, distance: 4, surface: 'paving_stones' },
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 195, distance: 4, surface: 'paving_stones' },
-      { name: 'Steinstraße', highway: 'pedestrian', bearing: 105, distance: 12, surface: 'cobblestone' },
-      { name: 'Metzgerstraße', highway: 'residential', bearing: 285, distance: 18, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Historisches Rathaus', type: 'townhall', bearing: 35, distance: 22, levels: 3, roofShape: 'gabled', color: '#e8c7b8' },
-      { name: 'Löwenapotheke', type: 'commercial', bearing: 130, distance: 18, levels: 4, roofShape: 'gabled', color: '#f3e5ab' },
-      { name: 'Kaufhaus am Markt', type: 'retail', bearing: 240, distance: 25, levels: 4, roofShape: 'hipped', color: '#dcd6d0' },
-      { name: 'Bürgerhaus Hauptstraße', type: 'apartments', bearing: 315, distance: 20, levels: 3, roofShape: 'gabled', color: '#ebd5b3' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Fischmarkt', type: 'street_name', bearing: 25, distance: 8 },
-      { text: 'B 3 → Lahr / Kehl / B 33 → Kinzigtal', subtext: 'Rathaus / Bahnhof 600m', type: 'direction', bearing: 195, distance: 14 }
-    ]
+    landmarks: ['Historisches Rathaus Offenburg', 'Hauptstraße', 'Salzhaus'],
+    description: 'Offenburg — historic district capital of the Ortenaukreis at the mouth of the Kinzig valley.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/43/7d/19/a7/74e7-44a4-90a3-ab9e23d5ab19/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/43/7d/19/a7/74e7-44a4-90a3-ab9e23d5ab19/hd.jpg',
+      is360: true,
+      heading: 356
+    }
   },
   {
-    id: 'ortenau-gengenbach-marktplatz',
-    lat: 48.4044,
-    lng: 8.0153,
-    name: 'Marktplatz / Victor-Kretz-Straße',
-    municipality: 'Gengenbach',
-    postalCode: '77723',
-    district: 'Ortenaukreis',
-    terrain: 'foothills',
-    elevation: 175,
+    id: 'ortenau-offenburg-nord',
+    name: 'Offenburg Nord / Okenstraße',
+    municipality: 'Offenburg',
+    postalCode: '77652',
+    lat: 48.4795,
+    lng: 7.9465,
     defaultHeading: 90,
-    description: 'Famous half-timbered old town (Altstadt) and Rathaus in Gengenbach in the Kinzig valley.',
-    landmarks: ['Rathaus Gengenbach', 'Obertor', 'Kinzigtorturm', 'Engelgasse'],
-    baselineRoads: [
-      { name: 'Victor-Kretz-Straße', highway: 'residential', bearing: 85, distance: 5, surface: 'cobblestone' },
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 265, distance: 6, surface: 'cobblestone' },
-      { name: 'Engelgasse', highway: 'footway', bearing: 355, distance: 16, surface: 'paving_stones' },
-      { name: 'Höllengasse', highway: 'footway', bearing: 175, distance: 19, surface: 'cobblestone' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus Gengenbach', type: 'townhall', bearing: 90, distance: 24, levels: 4, roofShape: 'hipped', color: '#e6b89c' },
-      { name: 'Obertor Turm', type: 'historic_tower', bearing: 5, distance: 65, levels: 6, roofShape: 'pyramidal', color: '#f4efe6' },
-      { name: 'Fachwerkhaus Marktplatz', type: 'timber_frame', bearing: 210, distance: 16, levels: 3, roofShape: 'gabled', color: '#f5e8d3' },
-      { name: 'Kornhaus', type: 'historic', bearing: 300, distance: 20, levels: 3, roofShape: 'gabled', color: '#eddcc4' }
-    ],
-    baselineSigns: [
-      { text: 'Victor-Kretz-Straße', subtext: 'Historische Altstadt', type: 'street_name', bearing: 70, distance: 9 },
-      { text: 'B 33 → Offenburg / Haslach i. K.', subtext: 'Kloster / Narrenmuseum', type: 'direction', bearing: 260, distance: 15 }
-    ]
-  },
-  {
-    id: 'ortenau-lahr-storchenturm',
-    lat: 48.3396,
-    lng: 7.8729,
-    name: 'Marktstraße / Storchenturm',
-    municipality: 'Lahr/Schwarzwald',
-    postalCode: '77933',
-    district: 'Ortenaukreis',
-    terrain: 'foothills',
-    elevation: 170,
-    defaultHeading: 180,
-    description: 'Downtown Lahr/Schwarzwald along Marktstraße right beside the medieval Storchenturm.',
-    landmarks: ['Storchenturm Lahr', 'Marktplatz Lahr', 'Altes Rathaus Lahr'],
-    baselineRoads: [
-      { name: 'Marktstraße', highway: 'pedestrian', bearing: 0, distance: 4, surface: 'paving_stones' },
-      { name: 'Marktstraße', highway: 'pedestrian', bearing: 180, distance: 4, surface: 'paving_stones' },
-      { name: 'Kaiserstraße', highway: 'secondary', bearing: 270, distance: 25, surface: 'asphalt' },
-      { name: 'Kirchstraße', highway: 'residential', bearing: 95, distance: 18, surface: 'paving_stones' }
-    ],
-    baselineBuildings: [
-      { name: 'Storchenturm', type: 'historic_tower', bearing: 40, distance: 20, levels: 6, roofShape: 'gabled', color: '#b59e8a' },
-      { name: 'Altes Rathaus Lahr', type: 'civic', bearing: 170, distance: 32, levels: 3, roofShape: 'hipped', color: '#e6ccb2' },
-      { name: 'Stadthaus Marktstraße', type: 'retail', bearing: 285, distance: 15, levels: 4, roofShape: 'gabled', color: '#f0ead6' }
-    ],
-    baselineSigns: [
-      { text: 'Marktstraße', subtext: 'Am Storchenturm', type: 'street_name', bearing: 15, distance: 7 },
-      { text: 'B 415 → Biberach / Seelbach', subtext: 'Stadtpark Lahr 800m', type: 'direction', bearing: 270, distance: 14 }
-    ]
-  },
-  {
-    id: 'ortenau-kehl-marktplatz',
-    lat: 48.5738,
-    lng: 7.8136,
-    name: 'Hauptstraße / Marktplatz Kehl',
-    municipality: 'Kehl',
-    postalCode: '77694',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 139,
-    defaultHeading: 340,
-    description: 'Central square of Kehl am Rhein near the Friedenskirche and Rhine promenade.',
-    landmarks: ['Friedenskirche Kehl', 'Weißtannenturm', 'Passerelle des Deux Rives'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 340, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 160, distance: 5, surface: 'asphalt' },
-      { name: 'Rheinstraße', highway: 'residential', bearing: 250, distance: 14, surface: 'paving_stones' },
-      { name: 'Kasernenstraße', highway: 'residential', bearing: 70, distance: 16, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Friedenskirche Kehl', type: 'church', bearing: 80, distance: 35, levels: 4, roofShape: 'pitched', color: '#d8a48f' },
-      { name: 'Rathaus Kehl', type: 'townhall', bearing: 240, distance: 28, levels: 3, roofShape: 'hipped', color: '#e9ecef' },
-      { name: 'Geschäftshaus Hauptstraße', type: 'commercial', bearing: 330, distance: 18, levels: 4, roofShape: 'flat', color: '#f8f9fa' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Marktplatz', type: 'street_name', bearing: 345, distance: 8 },
-      { text: 'B 28 → Offenburg / Appenweier', subtext: 'Bahnhof Kehl / Rheinpromenade', type: 'direction', bearing: 160, distance: 12 }
-    ]
-  },
-  {
-    id: 'ortenau-achern-hauptstrasse',
-    lat: 48.6317,
-    lng: 8.0744,
-    name: 'Hauptstraße / Rathausplatz',
-    municipality: 'Achern',
-    postalCode: '77855',
-    district: 'Ortenaukreis',
-    terrain: 'foothills',
-    elevation: 148,
-    defaultHeading: 120,
-    description: 'Main thoroughfare of Achern looking toward Klauskirche and the northern Black Forest foothills.',
-    landmarks: ['Klauskirche Achern', 'Rathaus am Markt Achern', 'Illenau'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 120, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 300, distance: 5, surface: 'asphalt' },
-      { name: 'Rathausplatz', highway: 'pedestrian', bearing: 30, distance: 15, surface: 'paving_stones' },
-      { name: 'Kirchstraße', highway: 'residential', bearing: 210, distance: 14, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Klauskirche', type: 'church', bearing: 145, distance: 35, levels: 4, roofShape: 'dome', color: '#c9a690' },
-      { name: 'Rathaus Achern', type: 'townhall', bearing: 25, distance: 24, levels: 3, roofShape: 'gabled', color: '#f2e8dc' },
-      { name: 'Stadthaus Achern', type: 'commercial', bearing: 280, distance: 19, levels: 4, roofShape: 'gabled', color: '#e0d6c8' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'L 87', type: 'street_name', bearing: 115, distance: 8 },
-      { text: 'L 86a → Sasbachwalden / Hornisgrinde', subtext: 'B 3 → Renchen / Bühl', type: 'direction', bearing: 125, distance: 14 }
-    ]
-  },
-  {
-    id: 'ortenau-oberkirch-hauptstrasse',
-    lat: 48.5308,
-    lng: 8.0789,
-    name: 'Hauptstraße / Kirchplatz',
-    municipality: 'Oberkirch',
-    postalCode: '77704',
-    district: 'Ortenaukreis',
-    terrain: 'foothills',
-    elevation: 192,
-    defaultHeading: 135,
-    description: 'Wine town of Oberkirch in the Renchtal below Schauenburg castle ruins.',
-    landmarks: ['Schauenburg Oberkirch', 'Kirchplatz Oberkirch', 'Heimat- und Grimmelshausenmuseum'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 135, distance: 4, surface: 'paving_stones' },
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 315, distance: 4, surface: 'paving_stones' },
-      { name: 'Bachanlage', highway: 'residential', bearing: 225, distance: 16, surface: 'asphalt' },
-      { name: 'Apothekerhof', highway: 'footway', bearing: 45, distance: 14, surface: 'cobblestone' }
-    ],
-    baselineBuildings: [
-      { name: 'Altes Rathaus Oberkirch', type: 'timber_frame', bearing: 120, distance: 20, levels: 3, roofShape: 'gabled', color: '#f5e6d3' },
-      { name: 'St. Cyriak Kirche', type: 'church', bearing: 35, distance: 38, levels: 4, roofShape: 'pitched', color: '#d9c2b2' },
-      { name: 'Fachwerkhaus Renchtal', type: 'timber_frame', bearing: 290, distance: 16, levels: 3, roofShape: 'gabled', color: '#f4e3c9' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Fußgängerzone', type: 'street_name', bearing: 130, distance: 7 },
-      { text: 'B 28 → Oppenau / Freudenstadt / Appenweier', subtext: 'Ruine Schauenburg 2 km', type: 'direction', bearing: 310, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-haslach-altstadt',
-    lat: 48.2775,
-    lng: 8.0869,
-    name: 'Hauptstraße / Alter Marktplatz',
-    municipality: 'Haslach im Kinzigtal',
-    postalCode: '77716',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 220,
-    defaultHeading: 75,
-    description: 'Half-timbered historic center of Haslach im Kinzigtal, home of Hansjakob and the Trachtenmuseum.',
-    landmarks: ['Altes Kapuzinerkloster Haslach', 'Historisches Rathaus Haslach', 'St. Arbogast'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 75, distance: 4, surface: 'cobblestone' },
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 255, distance: 4, surface: 'cobblestone' },
-      { name: 'Engelstraße', highway: 'residential', bearing: 165, distance: 13, surface: 'paving_stones' },
-      { name: 'Pfarrgasse', highway: 'footway', bearing: 345, distance: 15, surface: 'cobblestone' }
-    ],
-    baselineBuildings: [
-      { name: 'Historisches Rathaus Haslach', type: 'townhall', bearing: 80, distance: 21, levels: 3, roofShape: 'gabled', color: '#e6ccb2' },
-      { name: 'Fachwerkhaus Markt', type: 'timber_frame', bearing: 195, distance: 15, levels: 3, roofShape: 'gabled', color: '#f6ebd8' },
-      { name: 'Gasthaus Kreuz', type: 'timber_frame', bearing: 325, distance: 18, levels: 3, roofShape: 'gabled', color: '#edd9c0' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Historische Altstadt', type: 'street_name', bearing: 70, distance: 8 },
-      { text: 'B 33 → Hausach / Gengenbach / B 294 → Elzach', subtext: 'Schwarzwälder Trachtenmuseum', type: 'direction', bearing: 250, distance: 12 }
-    ]
-  },
-  {
-    id: 'ortenau-wolfach-hauptstrasse',
-    lat: 48.2994,
-    lng: 8.2225,
-    name: 'Hauptstraße / Fürstenberger Schloss',
-    municipality: 'Wolfach',
-    postalCode: '77709',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 262,
-    defaultHeading: 170,
-    description: 'Main street of Wolfach flanked by the Kinzig river, Rathaus gate, and Fürstenberg Castle.',
-    landmarks: ['Schloss Wolfach', 'Rathaus Wolfach', 'Dorotheenhütte'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'primary', bearing: 170, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße', highway: 'primary', bearing: 350, distance: 5, surface: 'asphalt' },
-      { name: 'Vorstadtstraße', highway: 'secondary', bearing: 260, distance: 22, surface: 'asphalt' },
-      { name: 'Schlosshof', highway: 'service', bearing: 80, distance: 18, surface: 'cobblestone' }
-    ],
-    baselineBuildings: [
-      { name: 'Schloss Wolfach', type: 'castle', bearing: 350, distance: 36, levels: 4, roofShape: 'hipped', color: '#efe5d8' },
-      { name: 'Rathaus Wolfach mit Stadttor', type: 'townhall', bearing: 170, distance: 28, levels: 4, roofShape: 'gabled', color: '#d99b82' },
-      { name: 'Bürgerhaus Kinzigtal', type: 'timber_frame', bearing: 95, distance: 16, levels: 3, roofShape: 'gabled', color: '#f3e5d0' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'L 96', type: 'street_name', bearing: 165, distance: 8 },
-      { text: 'B 294 → Freudenstadt / Hausach / Oberwolfach', subtext: 'Dorotheenhütte Glashütte 1 km', type: 'direction', bearing: 345, distance: 14 }
-    ]
-  },
-  {
-    id: 'ortenau-hornberg-hauptstrasse',
-    lat: 48.2133,
-    lng: 8.2311,
-    name: 'Hauptstraße / Viadukt Hornberg',
-    municipality: 'Hornberg',
-    postalCode: '78132',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 384,
-    defaultHeading: 185,
-    description: 'Deep Black Forest valley in Hornberg beneath the Schloss Hornberg ruin and Black Forest Railway viaduct.',
-    landmarks: ['Schloss Hornberg', 'Rebberg-Viadukt Schwarzwaldbahn', 'Freilichtbühne Hornberg'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 5, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 185, distance: 5, surface: 'asphalt' },
-      { name: 'Bahnhofstraße', highway: 'residential', bearing: 275, distance: 16, surface: 'asphalt' },
-      { name: 'Schlossstraße', highway: 'residential', bearing: 95, distance: 19, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Schwarzwaldbahn Viadukt', type: 'bridge', bearing: 290, distance: 55, levels: 5, roofShape: 'flat', color: '#9e9589' },
-      { name: 'Evangelische Stadtkirche', type: 'church', bearing: 140, distance: 30, levels: 4, roofShape: 'pitched', color: '#e6dcd2' },
-      { name: 'Rathaus Hornberg', type: 'townhall', bearing: 20, distance: 24, levels: 3, roofShape: 'gabled', color: '#f0e2d0' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Hornberger Schießen Stadt', type: 'street_name', bearing: 10, distance: 7 },
-      { text: 'B 33 → Triberg / Hausach / Gutach', subtext: 'Schloss Hornberg ↑', type: 'direction', bearing: 185, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-ettenheim-rohanstrasse',
-    lat: 48.2564,
-    lng: 7.8122,
-    name: 'Rohanstraße / Prinzengarten',
-    municipality: 'Ettenheim',
-    postalCode: '77955',
-    district: 'Ortenaukreis',
-    terrain: 'foothills',
-    elevation: 193,
-    defaultHeading: 95,
-    description: 'Baroque old town of Ettenheim with sandstone portals, Rathaus, and St. Bartholomäus church.',
-    landmarks: ['St. Bartholomäus Ettenheim', 'Palais Rohan', 'Rathaus Ettenheim'],
-    baselineRoads: [
-      { name: 'Rohanstraße', highway: 'secondary', bearing: 95, distance: 5, surface: 'cobblestone' },
-      { name: 'Rohanstraße', highway: 'secondary', bearing: 275, distance: 5, surface: 'cobblestone' },
-      { name: 'Friedrichstraße', highway: 'residential', bearing: 5, distance: 14, surface: 'paving_stones' },
-      { name: 'Kirchstraße', highway: 'residential', bearing: 185, distance: 15, surface: 'cobblestone' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus Ettenheim', type: 'townhall', bearing: 85, distance: 22, levels: 3, roofShape: 'mansard', color: '#e8c5b0' },
-      { name: 'Barockkirche St. Bartholomäus', type: 'church', bearing: 165, distance: 42, levels: 5, roofShape: 'pitched', color: '#f0d9c4' },
-      { name: 'Palais Rohan', type: 'historic', bearing: 265, distance: 26, levels: 3, roofShape: 'hipped', color: '#ebd4be' }
-    ],
-    baselineSigns: [
-      { text: 'Rohanstraße', subtext: 'Barockstadt Ettenheim', type: 'street_name', bearing: 90, distance: 8 },
-      { text: 'L 103 → Ettenheimmünster / Schweighausen / B 3 → Lahr', subtext: 'Historische Altstadt', type: 'direction', bearing: 275, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-rust-ritterstrasse',
-    lat: 48.2669,
-    lng: 7.7278,
-    name: 'Ritterstraße / Schloss Balthasar',
-    municipality: 'Rust',
-    postalCode: '77977',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 160,
-    defaultHeading: 210,
-    description: 'Village street in Rust in the Upper Rhine Plain near the Elz river and historic Balzare-Schloss.',
-    landmarks: ['Schloss Balthasar Rust', 'Fischerstraße Rust', 'Naturschutzzentrum Rheinauen'],
-    baselineRoads: [
-      { name: 'Ritterstraße', highway: 'residential', bearing: 30, distance: 5, surface: 'asphalt' },
-      { name: 'Ritterstraße', highway: 'residential', bearing: 210, distance: 5, surface: 'asphalt' },
-      { name: 'Hindenburgstraße', highway: 'secondary', bearing: 120, distance: 15, surface: 'asphalt' },
-      { name: 'Fischerstraße', highway: 'residential', bearing: 300, distance: 18, surface: 'paving_stones' }
-    ],
-    baselineBuildings: [
-      { name: 'Schloss Balthasar', type: 'castle', bearing: 235, distance: 35, levels: 3, roofShape: 'gabled', color: '#f2e2ce' },
-      { name: 'Altes Rathaus Rust', type: 'civic', bearing: 110, distance: 20, levels: 2, roofShape: 'gabled', color: '#e6ccb2' },
-      { name: 'Fachwerkhaus Elzufer', type: 'timber_frame', bearing: 320, distance: 17, levels: 2, roofShape: 'gabled', color: '#f7ecda' }
-    ],
-    baselineSigns: [
-      { text: 'Ritterstraße', subtext: 'Gemeinde Rust', type: 'street_name', bearing: 25, distance: 7 },
-      { text: 'A 5 → Offenburg / Freiburg / Kappel-Grafenhausen', subtext: 'Rheinauen Taubergießen 2 km', type: 'direction', bearing: 120, distance: 14 }
-    ]
-  },
-  {
-    id: 'ortenau-sasbachwalden-talstrasse',
-    lat: 48.6181,
-    lng: 8.1286,
-    name: 'Talstraße / Kurhaus Alde Gott',
-    municipality: 'Sasbachwalden',
-    postalCode: '77887',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 258,
-    defaultHeading: 110,
-    description: 'Flower and wine village of Sasbachwalden with white-and-dark timber-framed houses beneath Hornisgrinde.',
-    landmarks: ['Kurhaus Zum Alde Gott', 'Gaishöll-Wasserfälle', 'Dreifaltigkeitskirche Sasbachwalden'],
-    baselineRoads: [
-      { name: 'Talstraße (L 86)', highway: 'secondary', bearing: 110, distance: 5, surface: 'asphalt' },
-      { name: 'Talstraße (L 86)', highway: 'secondary', bearing: 290, distance: 5, surface: 'asphalt' },
-      { name: 'Kirchweg', highway: 'residential', bearing: 20, distance: 14, surface: 'paving_stones' },
-      { name: 'Murberg', highway: 'residential', bearing: 200, distance: 17, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Fachwerkhaus Blumenstraße', type: 'timber_frame', bearing: 75, distance: 16, levels: 3, roofShape: 'gabled', color: '#ffffff' },
-      { name: 'Winzergenossenschaft Alde Gott', type: 'commercial', bearing: 280, distance: 30, levels: 3, roofShape: 'gabled', color: '#f8f9fa' },
-      { name: 'Rathaus Sasbachwalden', type: 'townhall', bearing: 150, distance: 22, levels: 2, roofShape: 'gabled', color: '#ffffff' }
-    ],
-    baselineSigns: [
-      { text: 'Talstraße', subtext: 'Blumen- und Weindorf', type: 'street_name', bearing: 105, distance: 8 },
-      { text: 'L 86 → B 500 Schwarzwaldhochstraße / Achern', subtext: 'Gaishöll-Wasserfälle ↑', type: 'direction', bearing: 110, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-zell-am-harmersbach',
-    lat: 48.3461,
-    lng: 8.0636,
-    name: 'Hauptstraße / Storchenturm Zell',
-    municipality: 'Zell am Harmersbach',
-    postalCode: '77736',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 224,
-    defaultHeading: 45,
-    description: 'Smallest former Free Imperial City (Reichsstadt) in the Holy Roman Empire, famous for Zeller Keramik and Art Nouveau facades.',
-    landmarks: ['Storchenturm Zell am Harmersbach', 'Hirschturm', 'Zeller Keramik Manufaktur'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 45, distance: 4, surface: 'paving_stones' },
-      { name: 'Hauptstraße', highway: 'pedestrian', bearing: 225, distance: 4, surface: 'paving_stones' },
-      { name: 'Turmstraße', highway: 'residential', bearing: 135, distance: 15, surface: 'cobblestone' },
-      { name: 'Kanzleiplatz', highway: 'pedestrian', bearing: 315, distance: 16, surface: 'paving_stones' }
-    ],
-    baselineBuildings: [
-      { name: 'Storchenturm Zell', type: 'historic_tower', bearing: 45, distance: 32, levels: 6, roofShape: 'gabled', color: '#e6dfd5' },
-      { name: 'Jugendstil-Rathaus', type: 'townhall', bearing: 230, distance: 24, levels: 3, roofShape: 'gabled', color: '#d8e2dc' },
-      { name: 'Bürgerhaus Kanzleiplatz', type: 'timber_frame', bearing: 310, distance: 18, levels: 3, roofShape: 'gabled', color: '#f4e4ce' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Reichsstadt Zell a. H.', type: 'street_name', bearing: 40, distance: 7 },
-      { text: 'L 94 → Oberharmersbach / Biberach (Baden)', subtext: 'Zeller Keramik / Storchenturm', type: 'direction', bearing: 225, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-oppenau-allmendplatz',
-    lat: 48.4728,
-    lng: 8.1614,
-    name: 'Hauptstraße / Allmendplatz',
-    municipality: 'Oppenau',
-    postalCode: '77728',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 277,
-    defaultHeading: 60,
-    description: 'Upper Renchtal town of Oppenau at the foot of the Allerheiligen waterfalls and Kniebis pass.',
-    landmarks: ['Oberes Tor Oppenau', 'St. Johannes Baptist Oppenau', 'Allerheiligen Wasserfälle'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 60, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 240, distance: 5, surface: 'asphalt' },
-      { name: 'Allmendplatz', highway: 'residential', bearing: 150, distance: 14, surface: 'paving_stones' },
-      { name: 'Straßburger Straße (B 28)', highway: 'primary', bearing: 330, distance: 22, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Oberes Stadttor Oppenau', type: 'historic_tower', bearing: 60, distance: 26, levels: 4, roofShape: 'hipped', color: '#efe6d8' },
-      { name: 'Rathaus Oppenau', type: 'townhall', bearing: 165, distance: 22, levels: 3, roofShape: 'gabled', color: '#e8d5c4' },
-      { name: 'Kirche St. Johannes Baptist', type: 'church', bearing: 315, distance: 38, levels: 4, roofShape: 'pitched', color: '#d5bdaf' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Allmendplatz', type: 'street_name', bearing: 55, distance: 8 },
-      { text: 'B 28 → Bad Peterstal-Griesbach / Oberkirch', subtext: 'Klosterruine Allerheiligen 9 km', type: 'direction', bearing: 240, distance: 14 }
-    ]
-  },
-  {
-    id: 'ortenau-durbach-weinstrasse',
-    lat: 48.4936,
-    lng: 8.0219,
-    name: 'Talstraße / Schloss Staufenberg Blick',
-    municipality: 'Durbach',
-    postalCode: '77770',
-    district: 'Ortenaukreis',
-    terrain: 'foothills',
-    elevation: 208,
-    defaultHeading: 35,
-    description: 'Premier wine valley of Durbach surrounded by steep Klingelberger Riesling vineyards and Schloss Staufenberg.',
-    landmarks: ['Schloss Staufenberg Durbach', 'Wein- und Heimatmuseum Durbach', 'Durbacher Winzergenossenschaft'],
-    baselineRoads: [
-      { name: 'Talstraße (L 92)', highway: 'secondary', bearing: 35, distance: 5, surface: 'asphalt' },
-      { name: 'Talstraße (L 92)', highway: 'secondary', bearing: 215, distance: 5, surface: 'asphalt' },
-      { name: 'Staufenbergstraße', highway: 'residential', bearing: 310, distance: 14, surface: 'asphalt' },
-      { name: 'Nachtweide', highway: 'residential', bearing: 125, distance: 16, surface: 'paving_stones' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus Durbach', type: 'townhall', bearing: 45, distance: 22, levels: 3, roofShape: 'gabled', color: '#f3e5d8' },
-      { name: 'Weingut am Durbach', type: 'timber_frame', bearing: 200, distance: 18, levels: 2, roofShape: 'gabled', color: '#f7ecda' },
-      { name: 'St. Heinrich Kirche', type: 'church', bearing: 110, distance: 35, levels: 4, roofShape: 'pitched', color: '#e6ccb2' }
-    ],
-    baselineSigns: [
-      { text: 'Talstraße', subtext: 'Badische Weinstraße', type: 'street_name', bearing: 30, distance: 7 },
-      { text: 'L 92 → Offenburg / Oberkirch', subtext: 'Schloss Staufenberg 2.5 km ↑', type: 'direction', bearing: 310, distance: 12 }
-    ]
-  },
-  {
-    id: 'ortenau-hausach-hauptstrasse',
-    lat: 48.2856,
-    lng: 8.1786,
-    name: 'Hauptstraße / Burg Husen Blick',
-    municipality: 'Hausach',
-    postalCode: '77756',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 241,
-    defaultHeading: 250,
-    description: 'Town center of Hausach in the Kinzig valley overlooked by the medieval Burg Husen castle keep.',
-    landmarks: ['Burg Husen Hausach', 'Modellbahn-Zauber Hausach', 'Freilichtmuseum Vogtsbauernhof (Gutach)'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 70, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 250, distance: 5, surface: 'asphalt' },
-      { name: 'Eisenbahnstraße', highway: 'residential', bearing: 340, distance: 15, surface: 'asphalt' },
-      { name: 'Schlossbergstraße', highway: 'residential', bearing: 160, distance: 16, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus Hausach', type: 'townhall', bearing: 240, distance: 22, levels: 3, roofShape: 'gabled', color: '#e9d8c8' },
-      { name: 'St. Mauritius Kirche', type: 'church', bearing: 85, distance: 34, levels: 4, roofShape: 'pitched', color: '#dcd0c5' },
-      { name: 'Geschäftshaus Kinzig', type: 'commercial', bearing: 335, distance: 18, levels: 3, roofShape: 'gabled', color: '#f2e8dc' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Stadt Hausach', type: 'street_name', bearing: 245, distance: 7 },
-      { text: 'B 33 → Gutach / Hornberg / Haslach i. K. / B 294 → Wolfach', subtext: 'Burg Husen ↑', type: 'direction', bearing: 70, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-kappelrodeck-marktplatz',
-    lat: 48.5914,
-    lng: 8.1178,
-    name: 'Hauptstraße / Schloss Rodeck Blick',
-    municipality: 'Kappelrodeck',
-    postalCode: '77876',
-    district: 'Ortenaukreis',
-    terrain: 'foothills',
-    elevation: 216,
-    defaultHeading: 100,
-    description: 'Red wine village of Kappelrodeck in the Achertal beneath Schloss Rodeck.',
-    landmarks: ['Schloss Rodeck', 'Zuckerbergschloss Kappelrodeck', 'Achertalbahn'],
-    baselineRoads: [
-      { name: 'Hauptstraße (L 87)', highway: 'secondary', bearing: 100, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße (L 87)', highway: 'secondary', bearing: 280, distance: 5, surface: 'asphalt' },
-      { name: 'Pfarrberg', highway: 'residential', bearing: 10, distance: 14, surface: 'paving_stones' },
-      { name: 'Bahnhofstraße', highway: 'residential', bearing: 190, distance: 15, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus Kappelrodeck', type: 'townhall', bearing: 95, distance: 20, levels: 3, roofShape: 'gabled', color: '#f0e1d1' },
-      { name: 'St. Nikolaus Kirche', type: 'church', bearing: 15, distance: 32, levels: 4, roofShape: 'pitched', color: '#d4b59e' },
-      { name: 'Winzerhaus Achertal', type: 'timber_frame', bearing: 270, distance: 18, levels: 2, roofShape: 'gabled', color: '#f7ebda' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Rotweindorf Kappelrodeck', type: 'street_name', bearing: 95, distance: 7 },
-      { text: 'L 87 → Ottenhöfen / Seebach / Achern', subtext: 'Schloss Rodeck ↑', type: 'direction', bearing: 100, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-rheinau-freistett',
-    lat: 48.6689,
-    lng: 7.9056,
-    name: 'Rheinstraße / Kirchplatz Freistett',
-    municipality: 'Rheinau',
-    postalCode: '77866',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 130,
-    defaultHeading: 50,
-    description: 'Rheinau-Freistett in the northern Hanauerland near the Gambsheim Rhine barrage.',
-    landmarks: ['Rheinübergang Gambsheim-Rheinau', 'Heimatmuseum Rheinau', 'Hanauer Fachwerkhäuser'],
-    baselineRoads: [
-      { name: 'Rheinstraße (L 75)', highway: 'secondary', bearing: 50, distance: 5, surface: 'asphalt' },
-      { name: 'Rheinstraße (L 75)', highway: 'secondary', bearing: 230, distance: 5, surface: 'asphalt' },
-      { name: 'Maiwaldstraße', highway: 'secondary', bearing: 140, distance: 15, surface: 'asphalt' },
-      { name: 'Hafenstraße', highway: 'residential', bearing: 320, distance: 16, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus Rheinau', type: 'townhall', bearing: 140, distance: 24, levels: 3, roofShape: 'gabled', color: '#efe5d8' },
-      { name: 'Hanauer Fachwerkhaus', type: 'timber_frame', bearing: 45, distance: 18, levels: 2, roofShape: 'gabled', color: '#ffffff' },
-      { name: 'Evangelische Kirche Freistett', type: 'church', bearing: 240, distance: 30, levels: 3, roofShape: 'pitched', color: '#e6d5c3' }
-    ],
-    baselineSigns: [
-      { text: 'Rheinstraße', subtext: 'Rheinau-Freistett', type: 'street_name', bearing: 45, distance: 8 },
-      { text: 'L 75 → Kehl / Lichtenau / L 87 → Achern', subtext: 'Rheinpassage Gambsheim 3 km', type: 'direction', bearing: 230, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-bad-peterstal-griesbach',
-    lat: 48.4289,
-    lng: 8.2053,
-    name: 'Renchtalstraße / Kurpark Bad Peterstal',
-    municipality: 'Bad Peterstal-Griesbach',
-    postalCode: '77740',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 398,
-    defaultHeading: 105,
-    description: 'Mineral spa and Black Forest hiking town of Bad Peterstal-Griesbach in the upper Rench valley.',
-    landmarks: ['Sophienquelle Bad Peterstal', 'Habererturm', 'Wiesensteig & Schwarzwaldsteig'],
-    baselineRoads: [
-      { name: 'Renchtalstraße (B 28)', highway: 'primary', bearing: 105, distance: 5, surface: 'asphalt' },
-      { name: 'Renchtalstraße (B 28)', highway: 'primary', bearing: 285, distance: 5, surface: 'asphalt' },
-      { name: 'Wilhelmstraße', highway: 'residential', bearing: 195, distance: 15, surface: 'paving_stones' },
-      { name: 'Kurhausweg', highway: 'footway', bearing: 15, distance: 14, surface: 'paving_stones' }
-    ],
-    baselineBuildings: [
-      { name: 'Kurhaus Bad Peterstal', type: 'civic', bearing: 20, distance: 26, levels: 3, roofShape: 'hipped', color: '#f5ebe0' },
-      { name: 'St. Peter und Paul', type: 'church', bearing: 120, distance: 34, levels: 4, roofShape: 'pitched', color: '#e3d5ca' },
-      { name: 'Schwarzwaldhotel Renchtal', type: 'hotel', bearing: 275, distance: 22, levels: 4, roofShape: 'gabled', color: '#edede9' }
-    ],
-    baselineSigns: [
-      { text: 'Renchtalstraße', subtext: 'Heilbad Bad Peterstal', type: 'street_name', bearing: 100, distance: 7 },
-      { text: 'B 28 → Freudenstadt / Kniebis / Oppenau', subtext: 'Mineralbrunnen / Kurpark', type: 'direction', bearing: 105, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-seelbach-hauptstrasse',
-    lat: 48.3136,
-    lng: 7.9403,
-    name: 'Hauptstraße / Klostergarten',
-    municipality: 'Seelbach',
-    postalCode: '77960',
-    district: 'Ortenaukreis',
-    terrain: 'black_forest',
-    elevation: 205,
-    defaultHeading: 165,
-    description: 'Schutter valley town of Seelbach below Burgruine Hohengeroldseck.',
-    landmarks: ['Burg Hohengeroldseck', 'Schloss Dautenstein', 'Franziskanerkloster Seelbach'],
-    baselineRoads: [
-      { name: 'Hauptstraße (B 415)', highway: 'primary', bearing: 165, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße (B 415)', highway: 'primary', bearing: 345, distance: 5, surface: 'asphalt' },
-      { name: 'Klosterstraße', highway: 'residential', bearing: 75, distance: 14, surface: 'paving_stones' },
-      { name: 'Geroldsecker Straße', highway: 'residential', bearing: 255, distance: 16, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus im Alten Kloster', type: 'townhall', bearing: 75, distance: 24, levels: 3, roofShape: 'hipped', color: '#f2e4d4' },
-      { name: 'St. Nikolaus Seelbach', type: 'church', bearing: 200, distance: 32, levels: 4, roofShape: 'pitched', color: '#dfd3c3' },
-      { name: 'Gasthof Löwen', type: 'commercial', bearing: 335, distance: 18, levels: 3, roofShape: 'gabled', color: '#f5ebe0' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Luftkurort Seelbach', type: 'street_name', bearing: 160, distance: 7 },
-      { text: 'B 415 → Biberach (Kinzigtal) / Lahr', subtext: 'Burgruine Hohengeroldseck 4 km', type: 'direction', bearing: 165, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-appenweier-ortsmitte',
-    lat: 48.5394,
-    lng: 7.9803,
-    name: 'Ortenauer Straße / Rathaus Appenweier',
-    municipality: 'Appenweier',
-    postalCode: '77767',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 152,
-    defaultHeading: 85,
-    description: 'Central crossroads of Appenweier between Offenburg, Kehl, and the Renchtal.',
-    landmarks: ['St. Michael Appenweier', 'Rathaus Appenweier', 'Urloffen Meerrettichdorf'],
-    baselineRoads: [
-      { name: 'Ortenauer Straße (B 3)', highway: 'primary', bearing: 85, distance: 5, surface: 'asphalt' },
-      { name: 'Ortenauer Straße (B 3)', highway: 'primary', bearing: 265, distance: 5, surface: 'asphalt' },
-      { name: 'Oberkircher Straße', highway: 'secondary', bearing: 120, distance: 15, surface: 'asphalt' },
-      { name: 'Kirchplatz', highway: 'residential', bearing: 355, distance: 16, surface: 'paving_stones' }
-    ],
-    baselineBuildings: [
-      { name: 'Rathaus Appenweier', type: 'townhall', bearing: 10, distance: 22, levels: 3, roofShape: 'gabled', color: '#ede0d4' },
-      { name: 'Kirche St. Michael', type: 'church', bearing: 340, distance: 35, levels: 4, roofShape: 'pitched', color: '#d8c3b5' },
-      { name: 'Wohn- und Geschäftshaus', type: 'commercial', bearing: 190, distance: 18, levels: 3, roofShape: 'gabled', color: '#f4f1ea' }
-    ],
-    baselineSigns: [
-      { text: 'Ortenauer Straße', subtext: 'Gemeinde Appenweier', type: 'street_name', bearing: 80, distance: 7 },
-      { text: 'B 28 → Oberkirch / Kehl / B 3 → Offenburg / Achern', subtext: 'Bahnhof Appenweier', type: 'direction', bearing: 85, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-schutterwald-hauptstrasse',
-    lat: 48.4583,
-    lng: 7.8831,
-    name: 'Hauptstraße / St. Jakobus Schutterwald',
-    municipality: 'Schutterwald',
-    postalCode: '77746',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 151,
-    defaultHeading: 270,
-    description: 'Schutterwald west of Offenburg, landmarked by the tall neo-Baroque church tower of St. Jakobus.',
-    landmarks: ['St. Jakobus Schutterwald', 'Baggersee Schutterwald', 'Müllenkapelle'],
-    baselineRoads: [
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 90, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 270, distance: 5, surface: 'asphalt' },
-      { name: 'Kirchstraße', highway: 'residential', bearing: 0, distance: 14, surface: 'paving_stones' },
-      { name: 'Bahnhofstraße', highway: 'residential', bearing: 180, distance: 16, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'St. Jakobus Kirche', type: 'church', bearing: 355, distance: 30, levels: 5, roofShape: 'pitched', color: '#e6c2b0' },
-      { name: 'Rathaus Schutterwald', type: 'townhall', bearing: 95, distance: 22, levels: 3, roofShape: 'gabled', color: '#f2e8dc' },
-      { name: 'Fachwerkhaus Hauptstraße', type: 'timber_frame', bearing: 245, distance: 17, levels: 2, roofShape: 'gabled', color: '#f7ecda' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Schutterwald', type: 'street_name', bearing: 265, distance: 7 },
-      { text: 'L 99 → Offenburg / Neuried-Altenheim', subtext: 'Reitstadion / Baggersee', type: 'direction', bearing: 270, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-neuried-altenheim',
-    lat: 48.4636,
-    lng: 7.8072,
-    name: 'Badstraße / Europadorf Altenheim',
-    municipality: 'Neuried',
-    postalCode: '77743',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 147,
-    defaultHeading: 180,
-    description: 'Neuried-Altenheim in the Ried wetlands along the Upper Rhine.',
-    landmarks: ['Friedenskirche Altenheim', 'Rheinauen Neuried', 'Pierre-Pflimlin-Brücke'],
-    baselineRoads: [
-      { name: 'Badstraße (L 75)', highway: 'secondary', bearing: 0, distance: 5, surface: 'asphalt' },
-      { name: 'Badstraße (L 75)', highway: 'secondary', bearing: 180, distance: 5, surface: 'asphalt' },
-      { name: 'Kirchstraße', highway: 'residential', bearing: 90, distance: 14, surface: 'asphalt' },
-      { name: 'Vogelsangstraße', highway: 'residential', bearing: 270, distance: 15, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Friedenskirche Altenheim', type: 'church', bearing: 85, distance: 28, levels: 4, roofShape: 'pitched', color: '#efe5d8' },
-      { name: 'Ried-Fachwerkhaus', type: 'timber_frame', bearing: 195, distance: 16, levels: 2, roofShape: 'gabled', color: '#ffffff' },
-      { name: 'Rathaus Neuried', type: 'townhall', bearing: 340, distance: 24, levels: 3, roofShape: 'gabled', color: '#e8d8c8' }
-    ],
-    baselineSigns: [
-      { text: 'Badstraße', subtext: 'Neuried-Altenheim', type: 'street_name', bearing: 175, distance: 7 },
-      { text: 'L 75 → Kehl / Ichenheim / L 98 → Offenburg', subtext: 'Rhein / Straßburg Süd', type: 'direction', bearing: 180, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-meissenheim-kirchstrasse',
-    lat: 48.4094,
-    lng: 7.7731,
-    name: 'Hindenburgstraße / Friederike-Brion-Grab',
-    municipality: 'Meißenheim',
-    postalCode: '77974',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 151,
-    defaultHeading: 150,
-    description: 'Ried village of Meißenheim near the Rhine, known for its Baroque church and Goethe heritage.',
-    landmarks: ['Barockkirche Meißenheim', 'Friederike-Brion-Grabstätte', 'Rheinauen Meißenheim'],
-    baselineRoads: [
-      { name: 'Hindenburgstraße (L 104)', highway: 'secondary', bearing: 150, distance: 5, surface: 'asphalt' },
-      { name: 'Hindenburgstraße (L 104)', highway: 'secondary', bearing: 330, distance: 5, surface: 'asphalt' },
-      { name: 'Kirchstraße', highway: 'residential', bearing: 60, distance: 14, surface: 'paving_stones' },
-      { name: 'Hauptstraße', highway: 'secondary', bearing: 240, distance: 16, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Evangelische Barockkirche', type: 'church', bearing: 55, distance: 28, levels: 4, roofShape: 'pitched', color: '#f3e5d0' },
-      { name: 'Rathaus Meißenheim', type: 'townhall', bearing: 160, distance: 22, levels: 2, roofShape: 'gabled', color: '#e9d8c8' },
-      { name: 'Fachwerkhof Ried', type: 'timber_frame', bearing: 315, distance: 18, levels: 2, roofShape: 'gabled', color: '#ffffff' }
-    ],
-    baselineSigns: [
-      { text: 'Hindenburgstraße', subtext: 'Gemeinde Meißenheim', type: 'street_name', bearing: 145, distance: 7 },
-      { text: 'L 104 → Lahr / Nonnenweier / Neuried', subtext: 'Friederike-Brion-Stätte', type: 'direction', bearing: 150, distance: 13 }
-    ]
-  },
-  {
-    id: 'ortenau-friesenheim-hauptstrasse',
-    lat: 48.3733,
-    lng: 7.8806,
-    name: 'Friesenheimer Hauptstraße / Rathaus',
-    municipality: 'Friesenheim',
-    postalCode: '77948',
-    district: 'Ortenaukreis',
     terrain: 'foothills',
     elevation: 159,
+    landmarks: ['Okenstraße', 'Bahnhof Offenburg', 'Kulturforum'],
+    description: 'Offenburg — northern urban district and transport hub of the Ortenau region.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/f5/cb/d1/3d/cb80-467d-9549-8de72d0626f3/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/f5/cb/d1/3d/cb80-467d-9549-8de72d0626f3/hd.jpg',
+      is360: true,
+      heading: 184
+    }
+  },
+  {
+    id: 'ortenau-ortenberg',
+    name: 'Ortenberg & Schlossblick',
+    municipality: 'Ortenberg',
+    postalCode: '77799',
+    lat: 48.4436,
+    lng: 7.9718,
+    defaultHeading: 140,
+    terrain: 'vineyards',
+    elevation: 195,
+    landmarks: ['Schloss Ortenberg', 'Hauptstraße Ortenberg', 'Kinzigvorbergzone'],
+    description: 'Ortenberg — wine village beneath Schloss Ortenberg, namesake of the Ortenau region.'
+  },
+  {
+    id: 'ortenau-ohlsbach',
+    name: 'Ohlsbach im Vorderen Kinzigtal',
+    municipality: 'Ohlsbach',
+    postalCode: '77797',
+    lat: 48.4328,
+    lng: 7.9967,
+    defaultHeading: 110,
+    terrain: 'kinzig_valley',
+    elevation: 185,
+    landmarks: ['Hauptstraße Ohlsbach', 'Hinterohlsbach', 'Kinzigtal'],
+    description: 'Ohlsbach — scenic municipality between Offenburg and Gengenbach in the lower Kinzig valley.'
+  },
+  {
+    id: 'ortenau-berghaupten',
+    name: 'Berghaupten',
+    municipality: 'Berghaupten',
+    postalCode: '77791',
+    lat: 48.4069,
+    lng: 7.9869,
+    defaultHeading: 75,
+    terrain: 'kinzig_valley',
+    elevation: 178,
+    landmarks: ['Rathaus Berghaupten', 'Talstraße', 'Schloss Berghaupten'],
+    description: 'Berghaupten — village in the lower Kinzig valley opposite Gengenbach.'
+  },
+  {
+    id: 'ortenau-gengenbach',
+    name: 'Gengenbach Altstadt',
+    municipality: 'Gengenbach',
+    postalCode: '77723',
+    lat: 48.4044,
+    lng: 8.0153,
+    defaultHeading: 115,
+    terrain: 'kinzig_valley',
+    elevation: 175,
+    landmarks: ['Kinzigtor', 'Historisches Rathaus Gengenbach', 'Obertor'],
+    description: 'Gengenbach — former Free Imperial City famous for its half-timbered old town and city gates.'
+  },
+  {
+    id: 'ortenau-durbach',
+    name: 'Durbach Weintal',
+    municipality: 'Durbach',
+    postalCode: '77770',
+    lat: 48.4933,
+    lng: 8.0222,
+    defaultHeading: 120,
+    terrain: 'vineyards',
+    elevation: 208,
+    landmarks: ['Schloss Staufenberg', 'Talstraße Durbach', 'Durbacher Winzergenossenschaft'],
+    description: 'Durbach — premier Baden wine valley surrounded by steep vineyards and Schloss Staufenberg.'
+  },
+  {
+    id: 'ortenau-hohberg',
+    name: 'Hohberg (Hofweier / Niederschopfheim)',
+    municipality: 'Hohberg',
+    postalCode: '77749',
+    lat: 48.4235,
+    lng: 7.9056,
+    defaultHeading: 200,
+    terrain: 'foothills',
+    elevation: 168,
+    landmarks: ['Hofweier', 'Niederschopfheim', 'Diersburg'],
+    description: 'Hohberg — foothill municipality south of Offenburg along the B3.'
+  },
+  {
+    id: 'ortenau-schutterwald',
+    name: 'Schutterwald',
+    municipality: 'Schutterwald',
+    postalCode: '77746',
+    lat: 48.4581,
+    lng: 7.8833,
+    defaultHeading: 260,
+    terrain: 'rhine_valley',
+    elevation: 151,
+    landmarks: ['Kirchstraße Schutterwald', 'Müllen', 'Langhurst'],
+    description: 'Schutterwald — Rhine plain municipality west of Offenburg.'
+  },
+
+  // --- Southern Ortenau / Lahr, Ettenheim, Rust & Schuttertal ---
+  {
+    id: 'ortenau-lahr-marktplatz',
+    name: 'Lahr/Schwarzwald Innenstadt',
+    municipality: 'Lahr/Schwarzwald',
+    postalCode: '77933',
+    lat: 48.3396,
+    lng: 7.8726,
+    defaultHeading: 245,
+    terrain: 'foothills',
+    elevation: 172,
+    landmarks: ['Storchenturm Lahr', 'Marktstraße', 'Rathausplatz Lahr'],
+    description: 'Lahr/Schwarzwald — second-largest city in the Ortenaukreis at the entrance to the Schutter valley.'
+  },
+  {
+    id: 'ortenau-lahr-west',
+    name: 'Lahr Dinglingen / Schwarzwaldstraße',
+    municipality: 'Lahr/Schwarzwald',
+    postalCode: '77933',
+    lat: 48.3422,
+    lng: 7.8485,
+    defaultHeading: 95,
+    terrain: 'foothills',
+    elevation: 162,
+    landmarks: ['Dinglingen', 'Schwarzwaldstraße', 'Bahnhof Lahr'],
+    description: 'Lahr/Schwarzwald — western district connecting the Rhine plain with the city center.'
+  },
+  {
+    id: 'ortenau-seelbach',
+    name: 'Seelbach im Schuttertal',
+    municipality: 'Seelbach',
+    postalCode: '77960',
+    lat: 48.3136,
+    lng: 7.9411,
+    defaultHeading: 160,
+    terrain: 'foothills',
+    elevation: 286,
+    landmarks: ['Burg Hohengeroldseck', 'Hauptstraße Seelbach', 'Schuttertal'],
+    description: 'Seelbach — climatic health resort in the Schutter valley below Burg Hohengeroldseck.'
+  },
+  {
+    id: 'ortenau-schuttertal',
+    name: 'Schuttertal',
+    municipality: 'Schuttertal',
+    postalCode: '77978',
+    lat: 48.2475,
+    lng: 7.9542,
+    defaultHeading: 85,
+    terrain: 'black_forest',
+    elevation: 315,
+    landmarks: ['Schuttertal', 'Schweighausen', 'Dörlinbach'],
+    description: 'Schuttertal — southern Black Forest valley in the Ortenaukreis.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/bb/d9/b8/75/2fde-431b-a970-a5bd98f29fa5/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/bb/d9/b8/75/2fde-431b-a970-a5bd98f29fa5/hd.jpg',
+      is360: true,
+      heading: 312
+    }
+  },
+  {
+    id: 'ortenau-friesenheim',
+    name: 'Friesenheim',
+    municipality: 'Friesenheim',
+    postalCode: '77948',
+    lat: 48.3736,
+    lng: 7.8825,
     defaultHeading: 190,
-    description: 'Friesenheim along the B 3 between Offenburg and Lahr at the foot of the Schuttern abbey hills.',
-    landmarks: ['St. Laurentius Friesenheim', 'Klosterkirche Schuttern', 'Rathaus Friesenheim'],
-    baselineRoads: [
-      { name: 'Friesenheimer Hauptstraße (B 3)', highway: 'primary', bearing: 10, distance: 5, surface: 'asphalt' },
-      { name: 'Friesenheimer Hauptstraße (B 3)', highway: 'primary', bearing: 190, distance: 5, surface: 'asphalt' },
-      { name: 'Kirchgasse', highway: 'residential', bearing: 100, distance: 14, surface: 'paving_stones' },
-      { name: 'Adlerstraße', highway: 'residential', bearing: 280, distance: 15, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'St. Laurentius Kirche', type: 'church', bearing: 105, distance: 30, levels: 4, roofShape: 'pitched', color: '#e6ccb2' },
-      { name: 'Rathaus Friesenheim', type: 'townhall', bearing: 200, distance: 24, levels: 3, roofShape: 'gabled', color: '#f2e8dc' },
-      { name: 'Winzerhof Friesenheim', type: 'timber_frame', bearing: 350, distance: 18, levels: 2, roofShape: 'gabled', color: '#f7ecda' }
-    ],
-    baselineSigns: [
-      { text: 'Friesenheimer Hauptstraße', subtext: 'B 3 Ortenau', type: 'street_name', bearing: 185, distance: 7 },
-      { text: 'B 3 → Lahr / Offenburg', subtext: 'Kloster Schuttern 3 km', type: 'direction', bearing: 190, distance: 13 }
-    ]
+    terrain: 'foothills',
+    elevation: 159,
+    landmarks: ['Friesenheimer Hauptstraße', 'Schuttern', 'Oberweier'],
+    description: 'Friesenheim — historic town along the B3 between Offenburg and Lahr.'
+  },
+  {
+    id: 'ortenau-kippenheim',
+    name: 'Kippenheim',
+    municipality: 'Kippenheim',
+    postalCode: '77971',
+    lat: 48.2953,
+    lng: 7.8219,
+    defaultHeading: 185,
+    terrain: 'foothills',
+    elevation: 170,
+    landmarks: ['Landstraße B3', 'Rathaus Kippenheim', 'Schmieheim'],
+    description: 'Kippenheim — foothill wine village south of Lahr.'
+  },
+  {
+    id: 'ortenau-mahlberg',
+    name: 'Mahlberg & Schloss Mahlberg',
+    municipality: 'Mahlberg',
+    postalCode: '77972',
+    lat: 48.2869,
+    lng: 7.8114,
+    defaultHeading: 150,
+    terrain: 'foothills',
+    elevation: 180,
+    landmarks: ['Schloss Mahlberg', 'Tabakmuseum Mahlberg', 'Rathausplatz'],
+    description: 'Mahlberg — historic small town crowned by Schloss Mahlberg in southern Ortenau.'
+  },
+  {
+    id: 'ortenau-ettenheim',
+    name: 'Ettenheim Barockstadt',
+    municipality: 'Ettenheim',
+    postalCode: '77955',
+    lat: 48.2561,
+    lng: 7.8122,
+    defaultHeading: 90,
+    terrain: 'foothills',
+    elevation: 193,
+    landmarks: ['Barockrathaus Ettenheim', 'Friedrichstraße', 'St. Bartholomäus'],
+    description: 'Ettenheim — baroque town in the southern Ortenaukreis foothills.'
+  },
+  {
+    id: 'ortenau-ringsheim',
+    name: 'Ringsheim',
+    municipality: 'Ringsheim',
+    postalCode: '77975',
+    lat: 48.2478,
+    lng: 7.7789,
+    defaultHeading: 270,
+    terrain: 'rhine_valley',
+    elevation: 172,
+    landmarks: ['Hauptstraße Ringsheim', 'Bahnhof Ringsheim/Europa-Park', 'Kahlenberg'],
+    description: 'Ringsheim — southern gateway municipality of the Ortenaukreis.'
+  },
+  {
+    id: 'ortenau-rust',
+    name: 'Rust (Ritterstraße / Ortskern)',
+    municipality: 'Rust',
+    postalCode: '77977',
+    lat: 48.2667,
+    lng: 7.7285,
+    defaultHeading: 180,
+    terrain: 'rhine_valley',
+    elevation: 165,
+    landmarks: ['Schloss Balthasar', 'Ritterstraße Rust', 'Alte Elz'],
+    description: 'Rust — famous Ortenau municipality on the Elz river near the Taubergießen nature reserve.'
+  },
+  {
+    id: 'ortenau-kappel-grafenhausen',
+    name: 'Kappel-Grafenhausen',
+    municipality: 'Kappel-Grafenhausen',
+    postalCode: '77966',
+    lat: 48.2922,
+    lng: 7.7417,
+    defaultHeading: 350,
+    terrain: 'rhine_valley',
+    elevation: 163,
+    landmarks: ['Rathausstraße', 'Taubergießen', 'Rheinübergang Rhinau'],
+    description: 'Kappel-Grafenhausen — Rhine valley municipality bordering the Taubergießen wetlands.'
+  },
+
+  // --- Western Ortenau / Rhine Plain, Kehl, Willstätt, Neuried, Meißenheim, Schwanau ---
+  {
+    id: 'ortenau-schwanau',
+    name: 'Schwanau (Ottenheim / Allmannsweier)',
+    municipality: 'Schwanau',
+    postalCode: '77963',
+    lat: 48.3522,
+    lng: 7.7686,
+    defaultHeading: 10,
+    terrain: 'rhine_valley',
+    elevation: 156,
+    landmarks: ['Ottenheim', 'Nonnenweier', 'Allmannsweier'],
+    description: 'Schwanau — Upper Rhine plain municipality west of Lahr.'
+  },
+  {
+    id: 'ortenau-meissenheim',
+    name: 'Meißenheim im Ried',
+    municipality: 'Meißenheim',
+    postalCode: '77974',
+    lat: 48.4094,
+    lng: 7.7739,
+    defaultHeading: 25,
+    terrain: 'rhine_valley',
+    elevation: 152,
+    landmarks: ['Kirche Meißenheim', 'Kürzell', 'Riedstraße'],
+    description: 'Meißenheim — traditional Ried village along the Upper Rhine.'
+  },
+  {
+    id: 'ortenau-neuried',
+    name: 'Neuried (Altenheim / Ichenheim)',
+    municipality: 'Neuried',
+    postalCode: '77743',
+    lat: 48.4636,
+    lng: 7.8069,
+    defaultHeading: 340,
+    terrain: 'rhine_valley',
+    elevation: 150,
+    landmarks: ['Altenheim', 'Ichenheim', 'Dundenheim'],
+    description: 'Neuried — large Rhine valley municipality between Lahr, Offenburg, and Kehl.'
+  },
+  {
+    id: 'ortenau-willstaett',
+    name: 'Willstätt an der Kinzig',
+    municipality: 'Willstätt',
+    postalCode: '77731',
+    lat: 48.5419,
+    lng: 7.8964,
+    defaultHeading: 265,
+    terrain: 'rhine_valley',
+    elevation: 142,
+    landmarks: ['Hauptstraße Willstätt', 'Kinzigbrücke', 'Moscherosch-Denkmal'],
+    description: 'Willstätt — Hanauerland municipality on the lower Kinzig river between Offenburg and Kehl.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/39/12/05/5b/6b47-4f4d-89f7-3c760153d375/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/39/12/05/5b/6b47-4f4d-89f7-3c760153d375/hd.jpg',
+      is360: true,
+      heading: 267
+    }
+  },
+  {
+    id: 'ortenau-kehl-zentrum',
+    name: 'Kehl am Rhein (Marktplatz / Hauptstraße)',
+    municipality: 'Kehl',
+    postalCode: '77694',
+    lat: 48.5739,
+    lng: 7.8091,
+    defaultHeading: 120,
+    terrain: 'rhine_valley',
+    elevation: 139,
+    landmarks: ['Marktplatz Kehl', 'Weißtannenturm', 'Passerelle des Deux Rives'],
+    description: 'Kehl — Ortenau border city directly on the Rhine river opposite Strasbourg.'
+  },
+  {
+    id: 'ortenau-kehl-leutesheim',
+    name: 'Kehl-Leutesheim / Hanauerland',
+    municipality: 'Kehl',
+    postalCode: '77694',
+    lat: 48.6137,
+    lng: 7.8754,
+    defaultHeading: 24,
+    terrain: 'rhine_valley',
+    elevation: 137,
+    landmarks: ['Leutesheim', 'Bodersweier', 'Auenheim'],
+    description: 'Kehl-Leutesheim — northern Hanauerland district in the Upper Rhine plain.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/9e/ee/71/53/c37e-4381-8114-563e73156847/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/9e/ee/71/53/c37e-4381-8114-563e73156847/hd.jpg',
+      is360: true,
+      heading: 24
+    }
+  },
+  {
+    id: 'ortenau-appenweier',
+    name: 'Appenweier & Urloffen',
+    municipality: 'Appenweier',
+    postalCode: '77767',
+    lat: 48.5397,
+    lng: 7.9803,
+    defaultHeading: 90,
+    terrain: 'rhine_valley',
+    elevation: 152,
+    landmarks: ['Ortenauer Straße', 'Urloffen', 'Nesselried'],
+    description: 'Appenweier — municipality at the junction of the Rhine Valley Railway and the Rench valley.'
+  },
+  {
+    id: 'ortenau-renchen',
+    name: 'Renchen (Grimmelshausenstadt)',
+    municipality: 'Renchen',
+    postalCode: '77871',
+    lat: 48.5861,
+    lng: 8.0106,
+    defaultHeading: 70,
+    terrain: 'renchtal',
+    elevation: 150,
+    landmarks: ['Hauptstraße Renchen', 'Simplicissimus-Haus', 'Ulm (Renchen)'],
+    description: 'Renchen — the Grimmelshausen town where the Rench river enters the Rhine plain.'
+  },
+  {
+    id: 'ortenau-rheinau',
+    name: 'Rheinau (Freistett / Memprechtshofen)',
+    municipality: 'Rheinau',
+    postalCode: '77866',
+    lat: 48.6157,
+    lng: 7.9752,
+    defaultHeading: 245,
+    terrain: 'rhine_valley',
+    elevation: 135,
+    landmarks: ['Freistett', 'Memprechtshofen', 'Rheinbischofsheim'],
+    description: 'Rheinau — northernmost Rhine valley town in the Ortenaukreis.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/e0/b1/c2/f0/37d5-4623-ac79-8bd7b5b49b03/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/e0/b1/c2/f0/37d5-4623-ac79-8bd7b5b49b03/hd.jpg',
+      is360: true,
+      heading: 246
+    }
+  },
+
+  // --- Northern Ortenau / Achern, Achertal & Hornisgrinde ---
+  {
+    id: 'ortenau-achern-zentrum',
+    name: 'Achern Innenstadt',
+    municipality: 'Achern',
+    postalCode: '77855',
+    lat: 48.6315,
+    lng: 8.0742,
+    defaultHeading: 135,
+    terrain: 'achertal',
+    elevation: 148,
+    landmarks: ['Klauskirchl Achern', 'Hauptstraße Achern', 'Rathaus am Markt'],
+    description: 'Achern — northern hub of the Ortenaukreis at the foot of the Hornisgrinde.'
+  },
+  {
+    id: 'ortenau-achern-grossweier',
+    name: 'Achern-Großweier',
+    municipality: 'Achern',
+    postalCode: '77855',
+    lat: 48.6166,
+    lng: 8.0438,
+    defaultHeading: 147,
+    terrain: 'rhine_valley',
+    elevation: 140,
+    landmarks: ['Großweierer Straße', 'Achern-West', 'Oberrheinebene'],
+    description: 'Achern-Großweier — western district of Achern in the Ortenau Rhine plain.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/53/ab/4a/a3/b2e2-454e-bf62-215678916fa4/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/53/ab/4a/a3/b2e2-454e-bf62-215678916fa4/hd.jpg',
+      is360: true,
+      heading: 147
+    }
+  },
+  {
+    id: 'ortenau-sasbach',
+    name: 'Sasbach & Obersasbach',
+    municipality: 'Sasbach',
+    postalCode: '77880',
+    lat: 48.6386,
+    lng: 8.0917,
+    defaultHeading: 105,
+    terrain: 'foothills',
+    elevation: 162,
+    landmarks: ['Turenne-Denkmal', 'Kirchplatz Sasbach', 'Obersasbach'],
+    description: 'Sasbach — historic foothill municipality between Achern and Sasbachwalden.'
+  },
+  {
+    id: 'ortenau-lauf',
+    name: 'Lauf (Burg Neu-Windeck)',
+    municipality: 'Lauf',
+    postalCode: '77886',
+    lat: 48.6494,
+    lng: 8.1325,
+    defaultHeading: 140,
+    terrain: 'vineyards',
+    elevation: 235,
+    landmarks: ['Burg Neu-Windeck', 'Hauptstraße Lauf', 'Ortenauer Weinpfad'],
+    description: 'Lauf — northernmost foothill wine village of the Ortenaukreis below Burg Neu-Windeck.'
+  },
+  {
+    id: 'ortenau-sasbachwalden',
+    name: 'Sasbachwalden Fachwerkdorf',
+    municipality: 'Sasbachwalden',
+    postalCode: '77887',
+    lat: 48.6181,
+    lng: 8.1278,
+    defaultHeading: 95,
+    terrain: 'vineyards',
+    elevation: 278,
+    landmarks: ['Talstraße Sasbachwalden', 'Alde Gott Winzer', 'Gaishöll-Wasserfälle'],
+    description: 'Sasbachwalden — award-winning white half-timbered wine village on the western slope of the Hornisgrinde.'
+  },
+  {
+    id: 'ortenau-kappelrodeck',
+    name: 'Kappelrodeck & Waldulm',
+    municipality: 'Kappelrodeck',
+    postalCode: '77876',
+    lat: 48.5906,
+    lng: 8.1175,
+    defaultHeading: 115,
+    terrain: 'achertal',
+    elevation: 220,
+    landmarks: ['Schloss Rodeck', 'Hauptstraße Kappelrodeck', 'Waldulm'],
+    description: 'Kappelrodeck — red-wine town in the Achertal overshadowed by Schloss Rodeck.'
+  },
+  {
+    id: 'ortenau-ottenhoefen',
+    name: 'Ottenhöfen im Schwarzwald',
+    municipality: 'Ottenhöfen im Schwarzwald',
+    postalCode: '77883',
+    lat: 48.5814,
+    lng: 8.1326,
+    defaultHeading: 69,
+    terrain: 'achertal',
+    elevation: 315,
+    landmarks: ['Ruhesteinstraße', 'Mühlenrundweg Ottenhöfen', 'Achertalbahn'],
+    description: 'Ottenhöfen im Schwarzwald — mill village in the upper Acher valley.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/3f/2c/bd/f9/902d-4c8d-b2fa-fb65e1099bb6/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/3f/2c/bd/f9/902d-4c8d-b2fa-fb65e1099bb6/hd.jpg',
+      is360: true,
+      heading: 69
+    }
   },
   {
     id: 'ortenau-seebach-mummelsee',
-    lat: 48.5972,
-    lng: 8.2008,
-    name: 'Schwarzwaldhochstraße (B 500) / Mummelsee',
+    name: 'Seebach & Schwarzwaldhochstraße (B500)',
     municipality: 'Seebach',
     postalCode: '77889',
-    district: 'Ortenaukreis',
+    lat: 48.5772,
+    lng: 8.1764,
+    defaultHeading: 55,
     terrain: 'black_forest',
-    elevation: 1036,
-    defaultHeading: 350,
-    description: 'High Black Forest pass at Mummelsee directly below Hornisgrinde (1164m), highest peak in the Ortenau.',
-    landmarks: ['Mummelsee', 'Hornisgrinde Turm', 'St. Michael Kapelle Mummelsee'],
-    baselineRoads: [
-      { name: 'Schwarzwaldhochstraße (B 500)', highway: 'primary', bearing: 75, distance: 6, surface: 'asphalt' },
-      { name: 'Schwarzwaldhochstraße (B 500)', highway: 'primary', bearing: 255, distance: 6, surface: 'asphalt' },
-      { name: 'Mummelsee-Rundweg', highway: 'footway', bearing: 350, distance: 12, surface: 'gravel' },
-      { name: 'Hornisgrindeweg', highway: 'path', bearing: 330, distance: 20, surface: 'gravel' }
-    ],
-    baselineBuildings: [
-      { name: 'Berghotel Mummelsee', type: 'hotel', bearing: 295, distance: 28, levels: 3, roofShape: 'hipped', color: '#8d6e63' },
-      { name: 'St. Michael Kapelle', type: 'church', bearing: 55, distance: 35, levels: 2, roofShape: 'pitched', color: '#f5ebe0' },
-      { name: 'Hornisgrindeturm (Fernblick)', type: 'historic_tower', bearing: 340, distance: 85, levels: 6, roofShape: 'flat', color: '#adb5bd' }
-    ],
-    baselineSigns: [
-      { text: 'Schwarzwaldhochstraße B 500', subtext: 'Mummelsee 1036m ü. NN', type: 'street_name', bearing: 250, distance: 8 },
-      { text: 'B 500 → Freudenstadt / Baden-Baden / L 87 → Seebach / Achern', subtext: 'Hornisgrinde Gipfel ↑', type: 'direction', bearing: 75, distance: 14 }
-    ]
+    elevation: 610,
+    landmarks: ['Ruhesteinstraße Seebach', 'Mummelsee / B500', 'Hornisgrinde'],
+    description: 'Seebach — Black Forest National Park gateway rising up to the Mummelsee and Hornisgrinde.'
+  },
+
+  // --- Renchtal / Oberkirch, Lautenbach, Oppenau & Bad Peterstal-Griesbach ---
+  {
+    id: 'ortenau-oberkirch',
+    name: 'Oberkirch im Renchtal',
+    municipality: 'Oberkirch',
+    postalCode: '77704',
+    lat: 48.5311,
+    lng: 8.0785,
+    defaultHeading: 155,
+    terrain: 'renchtal',
+    elevation: 192,
+    landmarks: ['Schauenburg', 'Hauptstraße Oberkirch', 'Kirchplatz'],
+    description: 'Oberkirch — center of the Rench valley famous for fruit orchards, distilleries, and Spätburgunder wine.'
   },
   {
-    id: 'ortenau-gutach-vogtsbauernhof',
-    lat: 48.2692,
-    lng: 8.2031,
-    name: 'Vogtsbauernhof / Gutach (Schwarzwaldbahn)',
+    id: 'ortenau-lautenbach',
+    name: 'Lautenbach im Renchtal',
+    municipality: 'Lautenbach',
+    postalCode: '77794',
+    lat: 48.5194,
+    lng: 8.1167,
+    defaultHeading: 120,
+    terrain: 'renchtal',
+    elevation: 215,
+    landmarks: ['Wallfahrtskirche Mariä Krönung', 'Hauptstraße Lautenbach', 'Renchtal'],
+    description: 'Lautenbach — pilgrimage village in the middle Rench valley between Oberkirch and Oppenau.'
+  },
+  {
+    id: 'ortenau-oppenau',
+    name: 'Oppenau im Renchtal',
+    municipality: 'Oppenau',
+    postalCode: '77728',
+    lat: 48.4733,
+    lng: 8.1619,
+    defaultHeading: 130,
+    terrain: 'renchtal',
+    elevation: 277,
+    landmarks: ['Oberes Tor Oppenau', 'Allerheiligen-Wasserfälle', 'B28 Renchtal'],
+    description: 'Oppenau — historic small town in the upper Rench valley surrounded by steep Black Forest peaks.'
+  },
+  {
+    id: 'ortenau-bad-peterstal-griesbach',
+    name: 'Bad Peterstal-Griesbach (B28)',
+    municipality: 'Bad Peterstal-Griesbach',
+    postalCode: '77740',
+    lat: 48.4283,
+    lng: 8.2053,
+    defaultHeading: 100,
+    terrain: 'black_forest',
+    elevation: 415,
+    landmarks: ['Renchtalstraße (B28)', 'Kurhaus Bad Peterstal', 'Kniebis-Aufstieg'],
+    description: 'Bad Peterstal-Griesbach — mineral spa and Black Forest hiking town in the easternmost Rench valley.'
+  },
+
+  // --- Kinzigtal & Harmersbachtal / Biberach, Zell, Nordrach, Haslach, Steinach, Hausach, Wolfach, Gutach, Hornberg ---
+  {
+    id: 'ortenau-biberach',
+    name: 'Biberach (Baden)',
+    municipality: 'Biberach',
+    postalCode: '77781',
+    lat: 48.3381,
+    lng: 8.0286,
+    defaultHeading: 165,
+    terrain: 'kinzig_valley',
+    elevation: 188,
+    landmarks: ['Prinzbach', 'Hauptstraße Biberach', 'Kinzigbrücke'],
+    description: 'Biberach — Kinzig valley municipality at the entrance to the Harmersbach valley.'
+  },
+  {
+    id: 'ortenau-zell-am-harmersbach',
+    name: 'Zell am Harmersbach',
+    municipality: 'Zell am Harmersbach',
+    postalCode: '77736',
+    lat: 48.3461,
+    lng: 8.0631,
+    defaultHeading: 65,
+    terrain: 'kinzig_valley',
+    elevation: 221,
+    landmarks: ['Storchenturm Zell', 'Hauptstraße Kanzleiplatz', 'Zeller Keramik'],
+    description: 'Zell am Harmersbach — formerly the smallest Free Imperial City of the Holy Roman Empire.'
+  },
+  {
+    id: 'ortenau-oberharmersbach',
+    name: 'Oberharmersbach',
+    municipality: 'Oberharmersbach',
+    postalCode: '77784',
+    lat: 48.3739,
+    lng: 8.1281,
+    defaultHeading: 55,
+    terrain: 'black_forest',
+    elevation: 305,
+    landmarks: ['Dorf Oberharmersbach', 'St. Gallus', 'Brandenkopf-Anstieg'],
+    description: 'Oberharmersbach — elongated Black Forest valley municipality below the Brandenkopf.'
+  },
+  {
+    id: 'ortenau-nordrach',
+    name: 'Nordrach',
+    municipality: 'Nordrach',
+    postalCode: '77787',
+    lat: 48.3972,
+    lng: 8.0803,
+    defaultHeading: 35,
+    terrain: 'black_forest',
+    elevation: 295,
+    landmarks: ['Im Dorf Nordrach', 'Maiasäge', 'Mooskopf'],
+    description: 'Nordrach — idyllic Black Forest side valley north of Zell am Harmersbach.'
+  },
+  {
+    id: 'ortenau-steinach',
+    name: 'Steinach & Welschensteinach',
+    municipality: 'Steinach',
+    postalCode: '77790',
+    lat: 48.2920,
+    lng: 8.0719,
+    defaultHeading: 188,
+    terrain: 'kinzig_valley',
+    elevation: 205,
+    landmarks: ['Hauptstraße Steinach', 'Welschensteinach', 'Kinzigtal'],
+    description: 'Steinach — traditional Kinzig valley municipality west of Haslach.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/cd/93/b0/98/0963-4119-9ba3-4271856c542c/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/cd/93/b0/98/0963-4119-9ba3-4271856c542c/hd.jpg',
+      is360: true,
+      heading: 188
+    }
+  },
+  {
+    id: 'ortenau-haslach',
+    name: 'Haslach im Kinzigtal (Altstadt)',
+    municipality: 'Haslach im Kinzigtal',
+    postalCode: '77716',
+    lat: 48.2776,
+    lng: 8.0869,
+    defaultHeading: 110,
+    terrain: 'kinzig_valley',
+    elevation: 220,
+    landmarks: ['Altes Kapuzinerkloster', 'Hauptstraße Haslach', 'Hansjakob-Brunnen'],
+    description: 'Haslach im Kinzigtal — historic market town with a protected half-timbered old town.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/3a/53/05/19/323b-443a-a731-f8e1a366a34f/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/3a/53/05/19/323b-443a-a731-f8e1a366a34f/hd.jpg',
+      is360: true,
+      heading: 182
+    }
+  },
+  {
+    id: 'ortenau-hofstetten',
+    name: 'Hofstetten im Kinzigtal',
+    municipality: 'Hofstetten',
+    postalCode: '77716',
+    lat: 48.2556,
+    lng: 8.0669,
+    defaultHeading: 205,
+    terrain: 'black_forest',
+    elevation: 260,
+    landmarks: ['Dorfstraße Hofstetten', 'Hansjakobkapelle', 'Biereck'],
+    description: 'Hofstetten — side valley municipality south of Haslach im Kinzigtal.'
+  },
+  {
+    id: 'ortenau-muehlenbach',
+    name: 'Mühlenbach',
+    municipality: 'Mühlenbach',
+    postalCode: '77796',
+    lat: 48.2533,
+    lng: 8.1108,
+    defaultHeading: 150,
+    terrain: 'black_forest',
+    elevation: 265,
+    landmarks: ['Hauptstraße Mühlenbach', 'St. Afra', 'B33 Kinzigtal'],
+    description: 'Mühlenbach — Black Forest valley town south-east of Haslach.'
+  },
+  {
+    id: 'ortenau-fischerbach',
+    name: 'Fischerbach im Kinzigtal',
+    municipality: 'Fischerbach',
+    postalCode: '77716',
+    lat: 48.2871,
+    lng: 8.1494,
+    defaultHeading: 90,
+    terrain: 'kinzig_valley',
+    elevation: 235,
+    landmarks: ['Kinzigtalstraße', 'Fischerbach', 'Brandenkopf-Südhang'],
+    description: 'Fischerbach — sunny Kinzig valley village between Haslach and Hausach.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/62/9d/86/ab/9ed6-47fc-b665-bf444b8f1926/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/62/9d/86/ab/9ed6-47fc-b665-bf444b8f1926/hd.jpg',
+      is360: true,
+      heading: 90
+    }
+  },
+  {
+    id: 'ortenau-hausach',
+    name: 'Hausach & Burg Husen',
+    municipality: 'Hausach',
+    postalCode: '77756',
+    lat: 48.2847,
+    lng: 8.1797,
+    defaultHeading: 95,
+    terrain: 'kinzig_valley',
+    elevation: 242,
+    landmarks: ['Burg Husen', 'Hauptstraße Hausach', 'Schwarzwaldbahn'],
+    description: 'Hausach — Kinzig valley town below Burg Husen where the Schwarzwaldbahn begins its mountain climb.'
+  },
+  {
+    id: 'ortenau-wolfach',
+    name: 'Wolfach Flößerstadt',
+    municipality: 'Wolfach',
+    postalCode: '77709',
+    lat: 48.3004,
+    lng: 8.2234,
+    defaultHeading: 105,
+    terrain: 'kinzig_valley',
+    elevation: 262,
+    landmarks: ['Fürstenbergisches Schloss Wolfach', 'Hauptstraße', 'Kinzig & Wolf'],
+    description: 'Wolfach — historic timber-rafting and glassblowing town at the confluence of the Wolf and Kinzig.',
+    verifiedImagery: {
+      provider: 'Panoramax 360° StreetView (OpenStreetMap)',
+      imageUrl: 'https://panoramax.openstreetmap.fr/derivates/e4/ae/dd/56/52dd-4cd6-ac6c-9004ab48469f/sd.jpg',
+      hdUrl: 'https://panoramax.openstreetmap.fr/derivates/e4/ae/dd/56/52dd-4cd6-ac6c-9004ab48469f/hd.jpg',
+      is360: true,
+      heading: 105
+    }
+  },
+  {
+    id: 'ortenau-gutach',
+    name: 'Gutach (Schwarzwaldbahn)',
     municipality: 'Gutach (Schwarzwaldbahn)',
     postalCode: '77793',
-    district: 'Ortenaukreis',
+    lat: 48.2489,
+    lng: 8.2119,
+    defaultHeading: 175,
     terrain: 'black_forest',
-    elevation: 280,
-    defaultHeading: 120,
-    description: 'Gutach valley home to the Black Forest Open Air Museum Vogtsbauernhof and the iconic Bollenhut.',
-    landmarks: ['Schwarzwälder Freilichtmuseum Vogtsbauernhof', 'Gutachtalbrücke', 'Bahnhof Gutach Freilichtmuseum'],
-    baselineRoads: [
-      { name: 'Landstraße (B 33)', highway: 'primary', bearing: 165, distance: 8, surface: 'asphalt' },
-      { name: 'Landstraße (B 33)', highway: 'primary', bearing: 345, distance: 8, surface: 'asphalt' },
-      { name: 'Am Vogtsbauernhof', highway: 'footway', bearing: 115, distance: 5, surface: 'gravel' },
-      { name: 'Museumsweg', highway: 'footway', bearing: 40, distance: 14, surface: 'cobblestone' }
-    ],
-    baselineBuildings: [
-      { name: 'Vogtsbauernhof (1612)', type: 'timber_frame', bearing: 120, distance: 24, levels: 3, roofShape: 'hipped', color: '#7f5539' },
-      { name: 'Hippenseppenhof', type: 'timber_frame', bearing: 55, distance: 34, levels: 3, roofShape: 'hipped', color: '#9c6644' },
-      { name: 'Lorenzenhof', type: 'timber_frame', bearing: 210, distance: 30, levels: 3, roofShape: 'hipped', color: '#b08968' }
-    ],
-    baselineSigns: [
-      { text: 'Vogtsbauernhof', subtext: 'Gutach (Schwarzwaldbahn)', type: 'street_name', bearing: 110, distance: 7 },
-      { text: 'B 33 → Hausach / Hornberg', subtext: 'Schwarzwälder Freilichtmuseum', type: 'direction', bearing: 345, distance: 14 }
-    ]
+    elevation: 294,
+    landmarks: ['Schwarzwälder Freilichtmuseum Vogtsbauernhof', 'Bollenhut-Tal', 'Gutachtalstraße'],
+    description: 'Gutach (Schwarzwaldbahn) — homeland of the famous Black Forest Bollenhut and Vogtsbauernhof open-air museum.'
   },
   {
-    id: 'ortenau-renchen-hauptstrasse',
-    lat: 48.5869,
-    lng: 8.0108,
-    name: 'Hauptstraße / Grimmelshausen-Denkmal',
-    municipality: 'Renchen',
-    postalCode: '77871',
-    district: 'Ortenaukreis',
-    terrain: 'rhine_valley',
-    elevation: 150,
-    defaultHeading: 200,
-    description: 'Grimmelshausenstadt Renchen on the Rench river between Achern and Appenweier.',
-    landmarks: ['Simplicissimus-Haus Renchen', 'Heilig-Kreuz-Kirche Renchen', 'Rathaus Renchen'],
-    baselineRoads: [
-      { name: 'Hauptstraße (B 3)', highway: 'primary', bearing: 20, distance: 5, surface: 'asphalt' },
-      { name: 'Hauptstraße (B 3)', highway: 'primary', bearing: 200, distance: 5, surface: 'asphalt' },
-      { name: 'Kirchplatz', highway: 'residential', bearing: 110, distance: 14, surface: 'paving_stones' },
-      { name: 'Friedhofstraße', highway: 'residential', bearing: 290, distance: 16, surface: 'asphalt' }
-    ],
-    baselineBuildings: [
-      { name: 'Heilig-Kreuz-Kirche', type: 'church', bearing: 115, distance: 28, levels: 4, roofShape: 'pitched', color: '#e6ccb2' },
-      { name: 'Rathaus Renchen', type: 'townhall', bearing: 210, distance: 22, levels: 3, roofShape: 'gabled', color: '#f2e8dc' },
-      { name: 'Simplicissimus-Haus', type: 'historic', bearing: 35, distance: 24, levels: 3, roofShape: 'gabled', color: '#edd9c4' }
-    ],
-    baselineSigns: [
-      { text: 'Hauptstraße', subtext: 'Grimmelshausenstadt Renchen', type: 'street_name', bearing: 195, distance: 7 },
-      { text: 'B 3 → Achern / Offenburg / L 89 → Rheinau', subtext: 'Simplicissimus-Haus', type: 'direction', bearing: 200, distance: 13 }
-    ]
+    id: 'ortenau-hornberg',
+    name: 'Hornberg (Schloss & Viadukt)',
+    municipality: 'Hornberg',
+    postalCode: '78132',
+    lat: 48.2136,
+    lng: 8.2308,
+    defaultHeading: 350,
+    terrain: 'black_forest',
+    elevation: 384,
+    landmarks: ['Schloss Hornberg', 'Hornberger Viadukt', 'Hauptstraße Hornberg'],
+    description: 'Hornberg — southern Black Forest town in the Gutach valley famous for the Hornberger Schießen and railway viaduct.'
   }
 ];
 
 module.exports = {
   ORTENAU_REGION,
   ORTENAU_LOCATIONS,
-  isPointInOrtenau
+  isPointInOrtenau,
+  generateRandomPointInOrtenau
 };

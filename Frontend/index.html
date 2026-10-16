@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ortenau Guesser — Baden-Württemberg StreetView Challenge</title>
+  <meta name="description" content="A GeoGuessr-inspired singleplayer street-view geography game fixed explicitly to the Ortenau region (Ortenaukreis) in Baden-Württemberg, Germany, powered by OpenStreetMap." />
+
+  <!-- Google Fonts: Inter & Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet OpenStreetMap CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <!-- Pannellum 360° Equirectangular StreetView CSS -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"
+  />
+
+  <!-- Application Styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- =====================================================================
+       1. MAIN MENU SCREEN (#main-menu)
+       ===================================================================== -->
+  <section id="main-menu" class="screen active" aria-label="Main Menu">
+    <div class="menu-backdrop">
+      <div class="menu-gradient-orb orb-forest"></div>
+      <div class="menu-gradient-orb orb-rhine"></div>
+      <div class="menu-gradient-orb orb-vineyard"></div>
+      <div class="menu-topographic-grid"></div>
+    </div>
+
+    <div class="menu-container">
+      <!-- Top Header Pill -->
+      <div class="menu-region-pill">
+        <span class="pill-dot"></span>
+        <span>Baden-Württemberg • Germany • OpenStreetMap Geoservices</span>
+      </div>
+
+      <!-- Hero Title & Crest -->
+      <header class="menu-hero">
+        <div class="crest-badge" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="54" height="54" fill="none">
+            <path d="M10 8H54V34C54 47.5 32 57 32 57C32 57 10 47.5 10 34V8Z" fill="#0d2818" stroke="#e0b252" stroke-width="3"/>
+            <!-- Black Forest Pines & Rhine Waves -->
+            <path d="M32 14L22 29H27L20 40H44L37 29H42L32 14Z" fill="#2dc653"/>
+            <path d="M18 45C22 43 26 47 32 45C38 43 42 47 46 45" stroke="#48cae4" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h1 class="menu-title">
+          ORTENAU <span class="title-accent">GUESSER</span>
+        </h1>
+        <p class="menu-subtitle">
+          Dropped into a fixed point between the <strong>Rhine Valley</strong>, historic wine villages, and the peaks of the <strong>Black Forest</strong>. Look around 360° — no moving allowed — and pinpoint your location in the Ortenaukreis!
+        </p>
+      </header>
+
+      <!-- Main Menu Grid: Left Controls + Right Region Preview Map -->
+      <div class="menu-grid">
+        <!-- Game Mode & Action Card -->
+        <div class="menu-card primary-card">
+          <div class="card-badge-row">
+            <span class="mode-tag">SINGLEPLAYER</span>
+            <span class="mode-tag tag-outline">FIXED POINT 360°</span>
+            <span class="mode-tag tag-osm">OSM LIVE</span>
+          </div>
+
+          <h2 class="card-heading">Ortenaukreis Explorer</h2>
+          <p class="card-desc">
+            5 rounds across towns, valleys, and mountain passes in the Ortenau region — from Offenburg, Lahr, Kehl, Achern, and Oberkirch to Gengenbach, Sasbachwalden, and the Hornisgrinde.
+          </p>
+
+          <!-- Round Count Selector -->
+          <div class="mode-selector" role="group" aria-label="Game Length">
+            <button type="button" class="mode-option active" data-rounds="5" id="mode-standard-btn">
+              <span class="mode-option-title">Standard (5 Rounds)</span>
+              <span class="mode-option-sub">Up to 25,000 pts</span>
+            </button>
+            <button type="button" class="mode-option" data-rounds="0" id="mode-freeplay-btn">
+              <span class="mode-option-title">Endless Free Play</span>
+              <span class="mode-option-sub">Unlimited drops in Ortenau</span>
+            </button>
+          </div>
+
+          <!-- Primary CTA Buttons -->
+          <div class="menu-actions">
+            <button type="button" id="start-game-btn" class="btn btn-primary btn-lg">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <span>Start Game in Ortenau</span>
+            </button>
+            <button type="button" id="how-to-play-btn" class="btn btn-secondary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>Game Rules</span>
+            </button>
+          </div>
+
+          <!-- Key Game Rules Checklist -->
+          <ul class="rules-mini-list">
+            <li>
+              <span class="check-icon">✓</span>
+              <span><strong>Fixed-Point 360° View:</strong> Pan, tilt, and zoom freely around your drop point — movement is locked.</span>
+            </li>
+            <li>
+              <span class="check-icon">✓</span>
+              <span><strong>Strictly Ortenau Region:</strong> Every drop &amp; map boundary is restricted to Ortenaukreis, Baden-Württemberg.</span>
+            </li>
+            <li>
+              <span class="check-icon">✓</span>
+              <span><strong>Bottom-Right OpenStreetMap:</strong> Place your pin and submit to reveal the real distance in meters / km.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Region Preview Card with Live OpenStreetMap of Ortenau -->
+        <div class="menu-card preview-card">
+          <div class="preview-header">
+            <div>
+              <span class="preview-label">ACTIVE PLAY BOUNDARY</span>
+              <h3 class="preview-title">Ortenaukreis (48.18°N–48.72°N, 7.75°E–8.35°E)</h3>
+            </div>
+            <span id="api-status-badge" class="status-badge status-online">OSM Ready</span>
+          </div>
+
+          <div id="menu-preview-map" class="menu-preview-map" aria-label="Ortenau Region Map Preview"></div>
+
+          <div class="preview-stats-grid">
+            <div class="preview-stat">
+              <span class="stat-label">Area</span>
+              <span class="stat-value">1,860 km²</span>
+            </div>
+            <div class="preview-stat">
+              <span class="stat-label">Municipalities</span>
+              <span class="stat-value">51 Towns</span>
+            </div>
+            <div class="preview-stat">
+              <span class="stat-label">Geoservice</span>
+              <span class="stat-value">OpenStreetMap</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       2. IN-GAME SCREEN (#game-screen)
+       ===================================================================== -->
+  <section id="game-screen" class="screen" aria-label="Game Screen">
+    <!-- Top HUD Bar -->
+    <header class="game-hud-top">
+      <!-- Left: Menu Button & Region Lock Badge -->
+      <div class="hud-left">
+        <button type="button" id="back-to-menu-btn" class="hud-btn" title="Return to Main Menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Main Menu</span>
+        </button>
+
+        <div class="hud-fixed-badge" title="You can look around 360° freely, but movement from this point is disabled.">
+          <span class="lock-dot"></span>
+          <span>Fixed Point • 360° Look Only (No Movement)</span>
+        </div>
+      </div>
+
+      <!-- Center: Live 360° Compass Bar -->
+      <div class="hud-compass-wrapper" aria-label="Compass Heading">
+        <div class="compass-bar">
+          <div id="compass-tape" class="compass-tape">
+            <span>NW</span><span>•</span><span>N</span><span>•</span><span>NE</span><span>•</span><span>E</span><span>•</span><span>SE</span><span>•</span><span>S</span><span>•</span><span>SW</span><span>•</span><span>W</span><span>•</span><span>NW</span><span>•</span><span>N</span><span>•</span><span>NE</span>
+          </div>
+          <div class="compass-center-notch">▼</div>
+        </div>
+        <div id="compass-readout" class="compass-readout">0° N</div>
+      </div>
+
+      <!-- Right: Round Counter, Score & View Controls -->
+      <div class="hud-right">
+        <div class="hud-stat-box">
+          <span class="hud-stat-label">ROUND</span>
+          <span id="hud-round" class="hud-stat-value">1 / 5</span>
+        </div>
+        <div class="hud-stat-box">
+          <span class="hud-stat-label">SCORE</span>
+          <span id="hud-score" class="hud-stat-value">0</span>
+        </div>
+        <button type="button" id="reset-view-btn" class="hud-btn hud-icon-btn" title="Reset Camera Heading (Look North)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          <span class="hide-mobile">Reset View</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Secondary Floating Controls (Clue / View Mode Switcher) -->
+    <div class="hud-sub-controls">
+      <div class="view-mode-pills" role="tablist" aria-label="StreetView Mode">
+        <button type="button" id="view-mode-360" class="view-pill active" role="tab" aria-selected="true">
+          <span>360° OSM Panorama</span>
+        </button>
+        <button type="button" id="view-mode-streetembed" class="view-pill" role="tab" aria-selected="false">
+          <span>Street Cam / Photo</span>
+        </button>
+      </div>
+
+      <button type="button" id="toggle-clue-btn" class="clue-pill" title="Inspect nearby OpenStreetMap observations from your fixed position">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span>Field Observations</span>
+      </button>
+    </div>
+
+    <!-- Collapsible Field Observations Drawer (Road Surface, Elevation, Architecture) -->
+    <aside id="clue-drawer" class="clue-drawer hidden" aria-label="Field Observations">
+      <div class="clue-drawer-header">
+        <h4>Look-Around Field Notes (OSM Context)</h4>
+        <button type="button" id="close-clue-btn" class="icon-close-btn" aria-label="Close Field Notes">✕</button>
+      </div>
+      <div id="clue-content" class="clue-content">
+        <!-- Populated dynamically from OSM Overpass context without spoiling exact coordinates -->
+      </div>
+    </aside>
+
+    <!-- Main 360° Fixed-Point StreetView Container -->
+    <main id="streetview-container" class="streetview-container">
+      <!-- Primary: Pannellum 360° Equirectangular Spherical Viewer (Fixed Point) -->
+      <div id="pano-viewer" class="pano-viewer"></div>
+
+      <!-- Optional Secondary: External Street-Level Photo / Fixed Embed View -->
+      <div id="external-street-view" class="external-street-view hidden">
+        <div id="external-street-content" class="external-street-content"></div>
+        <!-- Movement Blocker Overlay on External Embeds so user can only pan/look around -->
+        <div class="fixed-point-notice-banner">
+          <span>Fixed-Point Camera • Use 360° OSM Panorama tab for full unrestricted 360° spherical look-around</span>
+        </div>
+      </div>
+
+      <!-- Loading Overlay while fetching OSM Overpass data & rendering 360° scene -->
+      <div id="streetview-loading" class="streetview-loading">
+        <div class="spinner-ring"></div>
+        <h3 id="loading-title">Dropping into Ortenaukreis...</h3>
+        <p id="loading-subtitle">Querying OpenStreetMap Geoservices &amp; building 360° fixed-point street view</p>
+      </div>
+
+      <!-- Bottom-Left Fixed Point Info Chip -->
+      <div class="streetview-footer-chip">
+        <span class="chip-icon">🧭</span>
+        <span id="streetview-status-text">Drag anywhere to look around 360° • Scroll to zoom • Position is fixed</span>
+      </div>
+    </main>
+
+    <!-- ===================================================================
+         BOTTOM-RIGHT INTERACTIVE OPENSTREETMAP MINI-MAP (#minimap-wrapper)
+         =================================================================== -->
+    <div id="minimap-wrapper" class="minimap-wrapper" aria-label="Ortenau Guess Map">
+      <div class="minimap-header">
+        <div class="minimap-title-group">
+          <span class="minimap-indicator"></span>
+          <span class="minimap-title">Ortenau Map (Click to Place Pin)</span>
+        </div>
+        <div class="minimap-controls">
+          <button type="button" id="minimap-center-btn" class="minimap-ctrl-btn" title="Recenter on Ortenau">
+            ⌖
+          </button>
+          <button type="button" id="minimap-expand-btn" class="minimap-ctrl-btn" title="Pin / Expand Map Size">
+            ⤢
+          </button>
+        </div>
+      </div>
+
+      <!-- Leaflet Map Container -->
+      <div id="guess-map" class="guess-map"></div>
+
+      <!-- Coordinate Readout & Submit Guess Button -->
+      <div class="minimap-footer">
+        <div id="guess-coords-label" class="guess-coords-label">
+          No pin placed yet — click in Ortenau
+        </div>
+        <button type="button" id="submit-guess-btn" class="btn btn-guess" disabled>
+          <span>Place Pin on Map</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       3. ROUND RESULT OVERLAY (#result-modal)
+       ===================================================================== -->
+  <div id="result-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="result-location-title">
+    <div class="result-card">
+      <div class="result-header">
+        <div class="result-title-block">
+          <span id="result-round-badge" class="result-badge">ROUND 1 RESULT</span>
+          <h2 id="result-location-title" class="result-title">Offenburg, Ortenaukreis</h2>
+          <p id="result-location-subtitle" class="result-subtitle">Actual location vs. your guess in Ortenau</p>
+        </div>
+
+        <!-- Distance & Points Highlight Boxes -->
+        <div class="result-metrics">
+          <div class="metric-box metric-distance">
+            <span class="metric-label">REAL DISTANCE</span>
+            <span id="result-distance-value" class="metric-value">0.00 km</span>
+            <span id="result-distance-meters" class="metric-sub">0 m from actual point</span>
+          </div>
+          <div class="metric-box metric-score">
+            <span class="metric-label">ROUND SCORE</span>
+            <span id="result-score-value" class="metric-value">+5,000</span>
+            <span class="metric-sub">of 5,000 pts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Score Progress Bar -->
+      <div class="score-bar-track">
+        <div id="result-score-bar" class="score-bar-fill" style="width: 0%"></div>
+      </div>
+
+      <!-- Interactive OpenStreetMap showing Actual Location, User Guess & Connecting Line -->
+      <div class="result-map-wrapper">
+        <div id="result-map" class="result-map" aria-label="Round Result Map with Distance Line"></div>
+        <div class="result-map-legend">
+          <span class="legend-item">
+            <span class="legend-pin pin-actual"></span> Actual Location
+          </span>
+          <span class="legend-item">
+            <span class="legend-pin pin-guess"></span> Your Guess
+          </span>
+          <span class="legend-item">
+            <span class="legend-line"></span> Direct Distance (<strong id="legend-distance-inline">0 km</strong>)
+          </span>
+        </div>
+      </div>
+
+      <!-- Footer with Location Details & Next Round CTA -->
+      <div class="result-footer">
+        <div id="result-osm-details" class="result-osm-details">
+          <!-- Populated with OSM municipality, roads, elevation -->
+        </div>
+        <div class="result-actions">
+          <button type="button" id="next-round-btn" class="btn btn-primary btn-lg">
+            <span>Next Round</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       4. FINAL GAME SUMMARY OVERLAY (#summary-modal)
+       ===================================================================== -->
+  <div id="summary-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="summary-heading">
+    <div class="summary-card">
+      <div class="summary-header">
+        <span class="result-badge">EXPEDITION COMPLETE</span>
+        <h2 id="summary-heading" class="result-title">Ortenau Guesser Summary</h2>
+        <p id="summary-rank-text" class="result-subtitle">Here is how well you know the Ortenaukreis!</p>
+      </div>
+
+      <div class="summary-totals-grid">
+        <div class="summary-stat-card">
+          <span class="stat-label">TOTAL SCORE</span>
+          <span id="summary-total-score" class="stat-big">0 / 25,000</span>
+        </div>
+        <div class="summary-stat-card">
+          <span class="stat-label">AVERAGE REAL DISTANCE</span>
+          <span id="summary-avg-distance" class="stat-big">0.00 km</span>
+        </div>
+        <div class="summary-stat-card">
+          <span class="stat-label">BEST ROUND</span>
+          <span id="summary-best-round" class="stat-big">0 m</span>
+        </div>
+      </div>
+
+      <!-- Breakdown Table of Rounds -->
+      <div class="summary-table-wrapper">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Actual Location (Ortenau)</th>
+              <th>Real Distance</th>
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody id="summary-rounds-tbody">
+            <!-- Populated by app.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="summary-actions">
+        <button type="button" id="play-again-btn" class="btn btn-primary btn-lg">
+          <span>Play New Game</span>
+        </button>
+        <button type="button" id="summary-menu-btn" class="btn btn-secondary">
+          <span>Back to Main Menu</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       5. HOW TO PLAY / RULES MODAL (#rules-modal)
+       ===================================================================== -->
+  <div id="rules-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rules-heading">
+    <div class="rules-modal-card">
+      <div class="rules-modal-header">
+        <h2 id="rules-heading">How to Play Ortenau Guesser</h2>
+        <button type="button" id="close-rules-btn" class="icon-close-btn" aria-label="Close Rules">✕</button>
+      </div>
+      <div class="rules-modal-body">
+        <div class="rule-step">
+          <div class="rule-num">1</div>
+          <div>
+            <h3>Random Drop in the Ortenau Region</h3>
+            <p>Each round drops you into a random street-level location strictly inside the <strong>Ortenaukreis (Baden-Württemberg, Germany)</strong> — between the Rhine river in the west and the Black Forest crest in the east.</p>
+          </div>
+        </div>
+        <div class="rule-step">
+          <div class="rule-num">2</div>
+          <div>
+            <h3>Fixed Point — Look Around 360° (No Moving)</h3>
+            <p>Your position is fixed to the drop point. Drag to pan 360° horizontally and tilt vertically, or scroll to zoom in on road signs, half-timbered houses, vineyards, valley slopes, and compass directions.</p>
+          </div>
+        </div>
+        <div class="rule-step">
+          <div class="rule-num">3</div>
+          <div>
+            <h3>Pin Your Guess on the Bottom-Right OpenStreetMap</h3>
+            <p>Hover or expand the OpenStreetMap mini-map on the bottom right, click anywhere in the Ortenau region to place your guess pin, and click <strong>Lock In Guess</strong>.</p>
+          </div>
+        </div>
+        <div class="rule-step">
+          <div class="rule-num">4</div>
+          <div>
+            <h3>See the Real Distance &amp; Score</h3>
+            <p>After submitting, the result map reveals the actual location, your guess marker, the connecting line, and the exact real-world distance (in meters and kilometers) calculated via OpenStreetMap geoservices.</p>
+          </div>
+        </div>
+      </div>
+      <div class="rules-modal-footer">
+        <button type="button" id="rules-got-it-btn" class="btn btn-primary">Got It, Let's Play!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet OpenStreetMap JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- Pannellum 360° Panorama Viewer JS -->
+  <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+
+  <!-- Ortenau Guesser Frontend Application -->
+  <script src="app.js"></script>
+</body>
+</html>

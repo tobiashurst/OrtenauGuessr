@@ -210,15 +210,10 @@
       </div>
     </header>
 
-    <!-- Secondary Floating Controls (Clue / View Mode Switcher) -->
+    <!-- Secondary Floating Controls (Real 360° StreetView Badge & Field Observations) -->
     <div class="hud-sub-controls">
-      <div class="view-mode-pills" role="tablist" aria-label="StreetView Mode">
-        <button type="button" id="view-mode-360" class="view-pill active" role="tab" aria-selected="true">
-          <span>360° OSM Panorama</span>
-        </button>
-        <button type="button" id="view-mode-streetembed" class="view-pill" role="tab" aria-selected="false">
-          <span>Street Cam / Photo</span>
-        </button>
+      <div id="streetview-provider-badge" class="provider-badge">
+        <span>🌐 Real 360° Photo StreetView</span>
       </div>
 
       <button type="button" id="toggle-clue-btn" class="clue-pill" title="Inspect nearby OpenStreetMap observations from your fixed position">
@@ -241,31 +236,22 @@
       </div>
     </aside>
 
-    <!-- Main 360° Fixed-Point StreetView Container -->
+    <!-- Main Real 360° Fixed-Point StreetView Container -->
     <main id="streetview-container" class="streetview-container">
-      <!-- Primary: Pannellum 360° Equirectangular Spherical Viewer (Fixed Point) -->
+      <!-- Real 360° Equirectangular Spherical Photo Viewer (Pannellum) -->
       <div id="pano-viewer" class="pano-viewer"></div>
 
-      <!-- Optional Secondary: External Street-Level Photo / Fixed Embed View -->
-      <div id="external-street-view" class="external-street-view hidden">
-        <div id="external-street-content" class="external-street-content"></div>
-        <!-- Movement Blocker Overlay on External Embeds so user can only pan/look around -->
-        <div class="fixed-point-notice-banner">
-          <span>Fixed-Point Camera • Use 360° OSM Panorama tab for full unrestricted 360° spherical look-around</span>
-        </div>
-      </div>
-
-      <!-- Loading Overlay while fetching OSM Overpass data & rendering 360° scene -->
+      <!-- Loading Overlay while loading real 360° StreetView imagery -->
       <div id="streetview-loading" class="streetview-loading">
         <div class="spinner-ring"></div>
         <h3 id="loading-title">Dropping into Ortenaukreis...</h3>
-        <p id="loading-subtitle">Querying OpenStreetMap Geoservices &amp; building 360° fixed-point street view</p>
+        <p id="loading-subtitle">Loading real 360° StreetView panorama</p>
       </div>
 
       <!-- Bottom-Left Fixed Point Info Chip -->
       <div class="streetview-footer-chip">
         <span class="chip-icon">🧭</span>
-        <span id="streetview-status-text">Drag anywhere to look around 360° • Scroll to zoom • Position is fixed</span>
+        <span id="streetview-status-text">Real 360° StreetView • Drag to look around 360° • Scroll to zoom • Position is fixed</span>
       </div>
     </main>
 

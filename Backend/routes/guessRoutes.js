@@ -6,7 +6,7 @@
 const express = require('express');
 const { getRoundById } = require('../services/roundService');
 const { calculateDistanceAndScore } = require('../services/scoringService');
-const { ORTENAU_LOCATIONS } = require('../data/ortenauSeeds');
+const ORTENAU_LOCATIONS = require('../data/ortenauSeeds.json');
 
 const router = express.Router();
 

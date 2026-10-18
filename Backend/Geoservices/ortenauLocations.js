@@ -4,12 +4,12 @@
  * Kept for backwards compatibility with existing scripts and tests.
  */
 
+const ORTENAU_REGION = require('../data/ortenauRegion.json');
+const ORTENAU_LOCATIONS = require('../data/ortenauSeeds.json');
 const {
-  ORTENAU_REGION,
   isPointInOrtenau,
   generateRandomPointInOrtenau
-} = require('../data/ortenauRegion');
-const { ORTENAU_LOCATIONS } = require('../data/ortenauSeeds');
+} = require('../utils/geoUtils');
 
 module.exports = {
   ORTENAU_REGION,

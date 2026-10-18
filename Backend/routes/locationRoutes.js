@@ -4,7 +4,8 @@
  */
 
 const express = require('express');
-const { ORTENAU_REGION, isPointInOrtenau } = require('../data/ortenauRegion');
+const ORTENAU_REGION = require('../data/ortenauRegion.json');
+const { isPointInOrtenau } = require('../utils/geoUtils');
 const { getRandomOrtenauLocation } = require('../services/roundService');
 const { fetchOverpassSurroundings } = require('../services/overpassService');
 const { fetchReverseGeocode } = require('../services/nominatimService');

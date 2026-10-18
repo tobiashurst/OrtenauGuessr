@@ -1,0 +1,98 @@
+{
+  "name": "Ortenau (Ortenaukreis)",
+  "shortName": "Ortenaukreis",
+  "state": "Baden-Württemberg",
+  "country": "Germany",
+  "osmRelationId": 62611,
+  "center": {
+    "lat": 48.455,
+    "lng": 7.985
+  },
+  "defaultZoom": 10,
+  "minZoom": 9,
+  "maxZoom": 18,
+  "bounds": {
+    "north": 48.72,
+    "south": 48.18,
+    "east": 8.35,
+    "west": 7.7
+  },
+  "polygon": [
+    [
+      48.695,
+      7.925
+    ],
+    [
+      48.685,
+      8.02
+    ],
+    [
+      48.65,
+      8.135
+    ],
+    [
+      48.605,
+      8.205
+    ],
+    [
+      48.52,
+      8.245
+    ],
+    [
+      48.445,
+      8.32
+    ],
+    [
+      48.325,
+      8.285
+    ],
+    [
+      48.205,
+      8.245
+    ],
+    [
+      48.195,
+      8.11
+    ],
+    [
+      48.21,
+      7.965
+    ],
+    [
+      48.22,
+      7.82
+    ],
+    [
+      48.235,
+      7.715
+    ],
+    [
+      48.295,
+      7.71
+    ],
+    [
+      48.36,
+      7.73
+    ],
+    [
+      48.465,
+      7.775
+    ],
+    [
+      48.575,
+      7.8
+    ],
+    [
+      48.655,
+      7.865
+    ],
+    [
+      48.695,
+      7.925
+    ]
+  ],
+  "tileServer": {
+    "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    "attribution": "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
+  }
+}

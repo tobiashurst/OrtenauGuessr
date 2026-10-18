@@ -26,6 +26,13 @@ export function updateHudHeader() {
     dom.hudRound.textContent = `Round ${state.currentRound} (Free)`;
   }
   dom.hudScore.textContent = state.totalScore.toLocaleString();
+
+  if (state.isTimedMode) {
+    dom.hudTimerBox.classList.remove('hidden');
+    dom.hudTimer.textContent = `${state.timeRemaining}s`;
+  } else {
+    dom.hudTimerBox.classList.add('hidden');
+  }
 }
 
 /**

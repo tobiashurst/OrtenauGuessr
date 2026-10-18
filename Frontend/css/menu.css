@@ -203,8 +203,34 @@
 /* Mode Selector */
 .mode-selector {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.75rem;
+}
+
+/* Time Limit Slider */
+.time-limit-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(8, 24, 16, 0.4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.time-limit-container.hidden {
+  display: none;
+}
+
+.time-limit-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.time-limit-slider {
+  width: 100%;
+  accent-color: var(--accent-gold);
 }
 
 .mode-option {

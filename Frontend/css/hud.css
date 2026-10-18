@@ -140,6 +140,19 @@
   box-shadow: var(--shadow-md);
 }
 
+.hud-stat-box.hidden {
+  display: none;
+}
+
+#hud-timer-box {
+  border-color: rgba(224, 178, 82, 0.4);
+  background: rgba(224, 178, 82, 0.1);
+}
+
+#hud-timer {
+  color: var(--accent-gold);
+}
+
 .hud-stat-label {
   font-size: 0.62rem;
   font-weight: 700;

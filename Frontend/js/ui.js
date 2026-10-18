@@ -17,6 +17,33 @@ export function escapeHtml(str) {
 }
 
 /**
+ * Determine the low-time threshold (in seconds) based on the configured round time limit
+ */
+export function getLowTimeThreshold(timeLimit = state.timeLimit) {
+  if (timeLimit <= 10) return Math.max(2, Math.ceil(timeLimit * 0.4));
+  if (timeLimit <= 15) return 5;
+  return 10;
+}
+
+/**
+ * Update HUD timer value and low-time visual feedback state
+ */
+export function updateTimerHud() {
+  if (!state.isTimedMode) {
+    dom.hudTimerBox.classList.add('hidden');
+    dom.hudTimerBox.classList.remove('timer-low');
+    return;
+  }
+
+  dom.hudTimerBox.classList.remove('hidden');
+  dom.hudTimer.textContent = `${state.timeRemaining}s`;
+
+  const threshold = getLowTimeThreshold(state.timeLimit);
+  const isLow = state.timeRemaining <= threshold && state.timeRemaining >= 0;
+  dom.hudTimerBox.classList.toggle('timer-low', isLow);
+}
+
+/**
  * Update HUD round counter and running score
  */
 export function updateHudHeader() {
@@ -27,12 +54,7 @@ export function updateHudHeader() {
   }
   dom.hudScore.textContent = state.totalScore.toLocaleString();
 
-  if (state.isTimedMode) {
-    dom.hudTimerBox.classList.remove('hidden');
-    dom.hudTimer.textContent = `${state.timeRemaining}s`;
-  } else {
-    dom.hudTimerBox.classList.add('hidden');
-  }
+  updateTimerHud();
 }
 
 /**

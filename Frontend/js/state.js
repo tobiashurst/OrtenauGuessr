@@ -61,6 +61,7 @@ export function resetGameState() {
   state.currentLocation = null;
   state.currentGuess = null;
   state.isSubmitting = false;
+  state.timeRemaining = state.timeLimit;
   if (state.timerInterval) {
     clearInterval(state.timerInterval);
     state.timerInterval = null;

@@ -22,6 +22,7 @@ import {
 } from './streetview.js';
 import {
   updateHudHeader,
+  updateTimerHud,
   populateFieldObservations,
   displayRoundResult,
   showFinalSummaryModal
@@ -159,6 +160,7 @@ function returnToMainMenu() {
   if (state.timerInterval) {
     clearInterval(state.timerInterval);
   }
+  dom.hudTimerBox.classList.remove('timer-low');
   dom.resultModal.classList.add('hidden');
   dom.summaryModal.classList.add('hidden');
   dom.gameScreen.classList.remove('active');
@@ -176,7 +178,8 @@ async function loadRound(retryAttempt = 0) {
   if (state.timerInterval) {
     clearInterval(state.timerInterval);
   }
-  dom.hudTimerBox.classList.add('hidden');
+  state.timeRemaining = state.timeLimit;
+  dom.hudTimerBox.classList.remove('timer-low');
 
   clearGuessMarker();
 
@@ -232,8 +235,7 @@ function startTimer() {
   }
 
   state.timeRemaining = state.timeLimit;
-  dom.hudTimer.textContent = `${state.timeRemaining}s`;
-  dom.hudTimerBox.classList.remove('hidden');
+  updateTimerHud();
 
   state.timerInterval = setInterval(() => {
     if (state.isSubmitting) {
@@ -242,7 +244,7 @@ function startTimer() {
     }
 
     state.timeRemaining -= 1;
-    dom.hudTimer.textContent = `${state.timeRemaining}s`;
+    updateTimerHud();
 
     if (state.timeRemaining <= 0) {
       clearInterval(state.timerInterval);

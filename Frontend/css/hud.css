@@ -138,19 +138,11 @@
   flex-direction: column;
   align-items: center;
   box-shadow: var(--shadow-md);
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
 }
 
 .hud-stat-box.hidden {
   display: none;
-}
-
-#hud-timer-box {
-  border-color: rgba(224, 178, 82, 0.4);
-  background: rgba(224, 178, 82, 0.1);
-}
-
-#hud-timer {
-  color: var(--accent-gold);
 }
 
 .hud-stat-label {
@@ -158,6 +150,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+  transition: color 0.25s ease;
 }
 
 .hud-stat-value {
@@ -165,6 +158,31 @@
   font-size: 0.98rem;
   font-weight: 800;
   color: var(--text-primary);
+  transition: color 0.25s ease;
+}
+
+/* Low-Time Feedback State */
+#hud-timer-box.timer-low {
+  background: rgba(45, 12, 16, 0.9);
+  border-color: var(--accent-danger);
+  box-shadow: 0 0 18px rgba(255, 89, 94, 0.45), var(--shadow-md);
+  animation: hud-timer-pulse 0.85s ease-in-out infinite;
+}
+
+#hud-timer-box.timer-low .hud-stat-label,
+#hud-timer-box.timer-low .hud-stat-value {
+  color: var(--accent-danger);
+}
+
+@keyframes hud-timer-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 14px rgba(255, 89, 94, 0.35), var(--shadow-md);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 24px rgba(255, 89, 94, 0.7), var(--shadow-md);
+  }
 }
 
 /* Sub Controls (Provider Badge + Field Observations) */

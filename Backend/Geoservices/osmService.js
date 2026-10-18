@@ -20,6 +20,7 @@ const {
 const {
   fetchGoogleStreetViewPano,
   fetchStreetViewTile,
+  fetchStreetViewTilesBatch,
   fetchStreetLevelImagery
 } = require('../services/streetviewService');
 const { fetchOverpassSurroundings } = require('../services/overpassService');
@@ -44,6 +45,7 @@ module.exports = {
   toDegrees,
   fetchGoogleStreetViewPano,
   fetchStreetViewTile,
+  fetchStreetViewTilesBatch,
   fetchOverpassSurroundings,
   fetchReverseGeocode,
   fetchStreetLevelImagery,

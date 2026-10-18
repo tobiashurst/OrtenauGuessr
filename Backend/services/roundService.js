@@ -252,4 +252,3 @@ module.exports = {
   getRandomOrtenauLocation,
   getRoundById
 };
-

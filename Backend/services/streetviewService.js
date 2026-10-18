@@ -58,6 +58,10 @@ async function fetchGoogleStreetViewPano(lat, lng, radiusMeters = 750) {
 
     // Extract resolution dimensions per zoom level if present
     const rawZoomSizes = data?.[1]?.[2]?.[3]?.[0];
+    const rawTileSize = data?.[1]?.[2]?.[3]?.[1];
+    const tileWidth = Number(rawTileSize?.[1] ?? 512);
+    const tileHeight = Number(rawTileSize?.[0] ?? 512);
+
     const zoomSizes = Array.isArray(rawZoomSizes)
       ? rawZoomSizes.map((pair) => ({
           height: Number(pair?.[0]?.[0] ?? pair?.[0] ?? 1024),
@@ -67,6 +71,8 @@ async function fetchGoogleStreetViewPano(lat, lng, radiusMeters = 750) {
 
     const z2Size = zoomSizes?.[2] || { width: 2048, height: 1024 };
     const z3Size = zoomSizes?.[3] || { width: 4096, height: 2048 };
+    const z4Size = zoomSizes?.[4] || { width: 8192, height: 4096 };
+    const maxZoom = zoomSizes ? Math.min(4, zoomSizes.length - 1) : 4;
 
     return {
       provider: 'Google Street View 360°',
@@ -76,10 +82,19 @@ async function fetchGoogleStreetViewPano(lat, lng, radiusMeters = 750) {
       lng: panoLng,
       heading: Math.round(panoHeading),
       tileZoom: 2,
+      maxZoom,
+      tileSize: { width: tileWidth, height: tileHeight },
       worldWidth: z2Size.width,
       worldHeight: z2Size.height,
       hdWorldWidth: z3Size.width,
       hdWorldHeight: z3Size.height,
+      ultraWorldWidth: z4Size.width,
+      ultraWorldHeight: z4Size.height,
+      zoomLevels: {
+        2: z2Size,
+        3: z3Size,
+        4: z4Size
+      },
       tileUrlTemplate: `/api/streetview/tile?panoid=${encodeURIComponent(panoId)}&zoom={z}&x={x}&y={y}`
     };
   } catch (_) {
@@ -87,21 +102,51 @@ async function fetchGoogleStreetViewPano(lat, lng, radiusMeters = 750) {
   }
 }
 
+// In-memory LRU cache for 512x512 Street View tiles to speed up retries & batch requests
+const TILE_CACHE_MAX_ENTRIES = 600;
+const tileCache = new Map();
+
+function getCachedTile(key) {
+  if (!tileCache.has(key)) return null;
+  const val = tileCache.get(key);
+  // Refresh LRU order
+  tileCache.delete(key);
+  tileCache.set(key, val);
+  return val;
+}
+
+function setCachedTile(key, buffer) {
+  if (tileCache.has(key)) {
+    tileCache.delete(key);
+  } else if (tileCache.size >= TILE_CACHE_MAX_ENTRIES) {
+    const oldestKey = tileCache.keys().next().value;
+    tileCache.delete(oldestKey);
+  }
+  tileCache.set(key, buffer);
+}
+
 /**
  * Fetch a single 512x512 JPEG tile for a Google Street View 360° panorama.
  */
 async function fetchStreetViewTile(panoId, x, y, zoom = 2) {
+  const safeZoom = Math.max(0, Math.min(5, Number(zoom) || 2));
+  const cacheKey = `${panoId}:${safeZoom}:${x}:${y}`;
+  const cached = getCachedTile(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const url = `${GOOGLE_STREETVIEW_TILE_URL}?cb_client=maps_sv.tactile&panoid=${encodeURIComponent(
     panoId
   )}&x=${encodeURIComponent(x)}&y=${encodeURIComponent(y)}&zoom=${encodeURIComponent(
-    zoom
+    safeZoom
   )}&nbt=1&fover=2`;
 
   const response = await fetch(url, {
     headers: {
       'User-Agent': USER_AGENT
     },
-    signal: AbortSignal.timeout(4000)
+    signal: AbortSignal.timeout(5000)
   });
 
   if (!response.ok) {
@@ -109,7 +154,54 @@ async function fetchStreetViewTile(panoId, x, y, zoom = 2) {
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
+  const buffer = Buffer.from(arrayBuffer);
+  setCachedTile(cacheKey, buffer);
+  return buffer;
+}
+
+/**
+ * Fetch a grid or row range of Google Street View tiles concurrently on the backend.
+ * Bypasses browser per-origin HTTP/1.1 connection limits when loading 4K (32 tiles) or 8K (128 tiles).
+ */
+async function fetchStreetViewTilesBatch(panoId, zoom = 3, cols = 8, rows = 4, startRow = 0, endRow = rows - 1) {
+  const safeZoom = Math.max(0, Math.min(5, Number(zoom) || 3));
+  const safeCols = Math.max(1, Math.min(32, Number(cols) || 8));
+  const safeRows = Math.max(1, Math.min(16, Number(rows) || 4));
+  const rStart = Math.max(0, Math.min(safeRows - 1, Number(startRow) || 0));
+  const rEnd = Math.max(rStart, Math.min(safeRows - 1, Number(endRow) ?? safeRows - 1));
+
+  const coords = [];
+  for (let y = rStart; y <= rEnd; y++) {
+    for (let x = 0; x < safeCols; x++) {
+      coords.push({ x, y });
+    }
+  }
+
+  const CONCURRENCY = 16;
+  const results = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < coords.length) {
+      const idx = cursor++;
+      const { x, y } = coords[idx];
+      try {
+        const buf = await fetchStreetViewTile(panoId, x, y, safeZoom);
+        results.push({
+          x,
+          y,
+          data: buf.toString('base64')
+        });
+      } catch (_) {
+        // Ignore missing edge tiles gracefully
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(CONCURRENCY, coords.length) }, () => worker());
+  await Promise.all(workers);
+
+  return results;
 }
 
 /**
@@ -197,7 +289,9 @@ async function fetchStreetLevelImagery(lat, lng, verifiedImagery = null, searchR
 module.exports = {
   fetchGoogleStreetViewPano,
   fetchStreetViewTile,
+  fetchStreetViewTilesBatch,
   fetchStreetLevelImagery,
   USER_AGENT
 };
+
 

@@ -38,6 +38,10 @@ export const DEFAULT_ORTENAU_REGION = {
 export const state = {
   region: DEFAULT_ORTENAU_REGION,
   totalRounds: 5, // 5 for Standard Game, 0 for Endless Free Play
+  isTimedMode: false,
+  timeLimit: 60,
+  timeRemaining: 60,
+  timerInterval: null,
   currentRound: 1,
   totalScore: 0,
   roundHistory: [],
@@ -57,5 +61,9 @@ export function resetGameState() {
   state.currentLocation = null;
   state.currentGuess = null;
   state.isSubmitting = false;
+  if (state.timerInterval) {
+    clearInterval(state.timerInterval);
+    state.timerInterval = null;
+  }
 }
 

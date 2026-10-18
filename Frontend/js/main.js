@@ -43,14 +43,36 @@ function bindEvents() {
   // Mode selection on Main Menu
   dom.modeStandardBtn.addEventListener('click', () => {
     state.totalRounds = 5;
+    state.isTimedMode = false;
     dom.modeStandardBtn.classList.add('active');
+    dom.modeTimedBtn.classList.remove('active');
     dom.modeFreeplayBtn.classList.remove('active');
+    dom.timeLimitContainer.classList.add('hidden');
+  });
+
+  dom.modeTimedBtn.addEventListener('click', () => {
+    state.totalRounds = 5;
+    state.isTimedMode = true;
+    dom.modeTimedBtn.classList.add('active');
+    dom.modeStandardBtn.classList.remove('active');
+    dom.modeFreeplayBtn.classList.remove('active');
+    dom.timeLimitContainer.classList.remove('hidden');
   });
 
   dom.modeFreeplayBtn.addEventListener('click', () => {
     state.totalRounds = 0;
+    state.isTimedMode = false;
     dom.modeFreeplayBtn.classList.add('active');
     dom.modeStandardBtn.classList.remove('active');
+    dom.modeTimedBtn.classList.remove('active');
+    dom.timeLimitContainer.classList.add('hidden');
+  });
+
+  // Time Limit Slider
+  dom.timeLimitSlider.addEventListener('input', (e) => {
+    const val = e.target.value;
+    dom.timeLimitDisplay.textContent = val;
+    state.timeLimit = parseInt(val, 10);
   });
 
   // Start Game
@@ -134,6 +156,9 @@ async function startNewGame() {
  */
 function returnToMainMenu() {
   destroyStreetView();
+  if (state.timerInterval) {
+    clearInterval(state.timerInterval);
+  }
   dom.resultModal.classList.add('hidden');
   dom.summaryModal.classList.add('hidden');
   dom.gameScreen.classList.remove('active');
@@ -147,6 +172,11 @@ function returnToMainMenu() {
 async function loadRound(retryAttempt = 0) {
   state.currentGuess = null;
   state.isSubmitting = false;
+
+  if (state.timerInterval) {
+    clearInterval(state.timerInterval);
+  }
+  dom.hudTimerBox.classList.add('hidden');
 
   clearGuessMarker();
 
@@ -181,11 +211,51 @@ async function loadRound(retryAttempt = 0) {
     populateFieldObservations(locationData);
     await renderReal360StreetView(locationData, loadRound, retryAttempt);
     centerGuessMapOnOrtenau();
+
+    // Start timer if in timed mode
+    if (state.isTimedMode) {
+      startTimer();
+    }
   } catch (err) {
     console.error('Error loading round:', err);
     dom.loadingTitle.textContent = 'Connection issue loading Ortenau 360° location';
     dom.loadingSubtitle.textContent = err.message;
   }
+}
+
+/**
+ * Start the countdown timer for the round
+ */
+function startTimer() {
+  if (state.timerInterval) {
+    clearInterval(state.timerInterval);
+  }
+
+  state.timeRemaining = state.timeLimit;
+  dom.hudTimer.textContent = `${state.timeRemaining}s`;
+  dom.hudTimerBox.classList.remove('hidden');
+
+  state.timerInterval = setInterval(() => {
+    if (state.isSubmitting) {
+      clearInterval(state.timerInterval);
+      return;
+    }
+
+    state.timeRemaining -= 1;
+    dom.hudTimer.textContent = `${state.timeRemaining}s`;
+
+    if (state.timeRemaining <= 0) {
+      clearInterval(state.timerInterval);
+
+      // If user hasn't placed a pin, set current guess to a default far location or null
+      if (!state.currentGuess) {
+        // We set to 0,0 to give them 0 points if they didn't guess in time
+        state.currentGuess = { lat: 0, lng: 0 };
+      }
+
+      submitCurrentGuess();
+    }
+  }, 1000);
 }
 
 /**
@@ -195,6 +265,11 @@ async function submitCurrentGuess() {
   if (!state.currentGuess || !state.currentLocation || state.isSubmitting) return;
 
   state.isSubmitting = true;
+
+  if (state.timerInterval) {
+    clearInterval(state.timerInterval);
+  }
+
   dom.submitGuessBtn.disabled = true;
   dom.submitGuessBtn.innerHTML = '<span>Calculating Distance...</span>';
 

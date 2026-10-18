@@ -86,10 +86,22 @@
               <span class="mode-option-title">Standard (5 Rounds)</span>
               <span class="mode-option-sub">Up to 25,000 pts</span>
             </button>
+            <button type="button" class="mode-option" data-rounds="5" id="mode-timed-btn">
+              <span class="mode-option-title">Timed Mode (5 Rounds)</span>
+              <span class="mode-option-sub">Beat the clock</span>
+            </button>
             <button type="button" class="mode-option" data-rounds="0" id="mode-freeplay-btn">
               <span class="mode-option-title">Endless Free Play</span>
               <span class="mode-option-sub">Unlimited drops in Ortenau</span>
             </button>
+          </div>
+
+          <!-- Time Limit Slider (Hidden by default) -->
+          <div id="time-limit-container" class="time-limit-container hidden">
+            <label for="time-limit-slider" class="time-limit-label">
+              Time per round: <span id="time-limit-display">60</span> seconds
+            </label>
+            <input type="range" id="time-limit-slider" name="time-limit-slider" min="5" max="60" value="60" step="5" class="time-limit-slider" />
           </div>
 
           <!-- Primary CTA Buttons -->
@@ -192,6 +204,10 @@
 
       <!-- Right: Round Counter, Score & View Controls -->
       <div class="hud-right">
+        <div class="hud-stat-box hidden" id="hud-timer-box">
+          <span class="hud-stat-label">TIME</span>
+          <span id="hud-timer" class="hud-stat-value">60s</span>
+        </div>
         <div class="hud-stat-box">
           <span class="hud-stat-label">ROUND</span>
           <span id="hud-round" class="hud-stat-value">1 / 5</span>

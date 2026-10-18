@@ -9,11 +9,17 @@ export const dom = {
   apiStatusBadge: document.getElementById('api-status-badge'),
 
   modeStandardBtn: document.getElementById('mode-standard-btn'),
+  modeTimedBtn: document.getElementById('mode-timed-btn'),
   modeFreeplayBtn: document.getElementById('mode-freeplay-btn'),
+  timeLimitContainer: document.getElementById('time-limit-container'),
+  timeLimitSlider: document.getElementById('time-limit-slider'),
+  timeLimitDisplay: document.getElementById('time-limit-display'),
   startGameBtn: document.getElementById('start-game-btn'),
   howToPlayBtn: document.getElementById('how-to-play-btn'),
 
   backToMenuBtn: document.getElementById('back-to-menu-btn'),
+  hudTimerBox: document.getElementById('hud-timer-box'),
+  hudTimer: document.getElementById('hud-timer'),
   hudRound: document.getElementById('hud-round'),
   hudScore: document.getElementById('hud-score'),
   compassTape: document.getElementById('compass-tape'),

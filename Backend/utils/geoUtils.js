@@ -1,7 +1,10 @@
 /**
- * Ortenau Guesser - Geographic Math Utilities
- * Haversine distance, true compass bearing calculations, and coordinate conversions.
+ * Ortenau Guesser - Geographic Math & Region Boundary Utilities
+ * Haversine distance, true compass bearing calculations, coordinate conversions,
+ * and Ortenaukreis polygon boundary checks.
  */
+
+const ORTENAU_REGION = require('../data/ortenauRegion.json');
 
 /**
  * Convert degrees to radians
@@ -57,11 +60,58 @@ function bearingToCardinal(bearing) {
   return directions[index];
 }
 
+/**
+ * Ray-casting point-in-polygon check + bounding box check to ensure any coordinate
+ * is strictly within the Ortenaukreis region.
+ */
+function isPointInOrtenau(lat, lng) {
+  if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) {
+    return false;
+  }
+  const { north, south, east, west } = ORTENAU_REGION.bounds;
+  if (lat < south || lat > north || lng < west || lng > east) {
+    return false;
+  }
+
+  const poly = ORTENAU_REGION.polygon;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const yi = poly[i][0];
+    const xi = poly[i][1];
+    const yj = poly[j][0];
+    const xj = poly[j][1];
+
+    const intersect =
+      yi > lat !== yj > lat &&
+      lng < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Generate a random geographic coordinate strictly inside the Ortenaukreis polygon.
+ */
+function generateRandomPointInOrtenau() {
+  const { north, south, east, west } = ORTENAU_REGION.bounds;
+  for (let i = 0; i < 100; i++) {
+    const lat = Number((south + Math.random() * (north - south)).toFixed(6));
+    const lng = Number((west + Math.random() * (east - west)).toFixed(6));
+    if (isPointInOrtenau(lat, lng)) {
+      return { lat, lng };
+    }
+  }
+  return { lat: 48.4719, lng: 7.9446 };
+}
+
 module.exports = {
   toRadians,
   toDegrees,
   haversineDistanceMeters,
   calculateBearing,
-  bearingToCardinal
+  bearingToCardinal,
+  isPointInOrtenau,
+  generateRandomPointInOrtenau
 };
+
 

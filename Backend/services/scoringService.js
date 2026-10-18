@@ -7,9 +7,9 @@
 const {
   haversineDistanceMeters,
   calculateBearing,
-  bearingToCardinal
+  bearingToCardinal,
+  isPointInOrtenau
 } = require('../utils/geoUtils');
-const { isPointInOrtenau } = require('../data/ortenauRegion');
 
 /**
  * Calculate exact distance and GeoGuessr-style score (0 - 5000) calibrated for Ortenaukreis (~60km span)

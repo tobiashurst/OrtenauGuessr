@@ -5,13 +5,13 @@
  */
 
 const crypto = require('crypto');
+const ORTENAU_REGION = require('../data/ortenauRegion.json');
+const ORTENAU_LOCATIONS = require('../data/ortenauSeeds.json');
 const {
-  ORTENAU_REGION,
+  haversineDistanceMeters,
   isPointInOrtenau,
   generateRandomPointInOrtenau
-} = require('../data/ortenauRegion');
-const { ORTENAU_LOCATIONS } = require('../data/ortenauSeeds');
-const { haversineDistanceMeters } = require('../utils/geoUtils');
+} = require('../utils/geoUtils');
 const { fetchStreetLevelImagery } = require('./streetviewService');
 const { fetchOverpassSurroundings } = require('./overpassService');
 const { fetchReverseGeocode } = require('./nominatimService');

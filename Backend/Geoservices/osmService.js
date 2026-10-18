@@ -4,18 +4,16 @@
  * Kept for backwards compatibility with existing scripts and tests.
  */
 
-const {
-  ORTENAU_REGION,
-  isPointInOrtenau,
-  generateRandomPointInOrtenau
-} = require('../data/ortenauRegion');
-const { ORTENAU_LOCATIONS } = require('../data/ortenauSeeds');
+const ORTENAU_REGION = require('../data/ortenauRegion.json');
+const ORTENAU_LOCATIONS = require('../data/ortenauSeeds.json');
 const {
   haversineDistanceMeters,
   calculateBearing,
   bearingToCardinal,
   toRadians,
-  toDegrees
+  toDegrees,
+  isPointInOrtenau,
+  generateRandomPointInOrtenau
 } = require('../utils/geoUtils');
 const {
   fetchGoogleStreetViewPano,

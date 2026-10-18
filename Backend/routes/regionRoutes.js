@@ -4,8 +4,8 @@
  */
 
 const express = require('express');
-const { ORTENAU_REGION } = require('../data/ortenauRegion');
-const { ORTENAU_LOCATIONS } = require('../data/ortenauSeeds');
+const ORTENAU_REGION = require('../data/ortenauRegion.json');
+const ORTENAU_LOCATIONS = require('../data/ortenauSeeds.json');
 
 const router = express.Router();
 

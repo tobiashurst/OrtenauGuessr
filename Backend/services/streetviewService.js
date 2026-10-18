@@ -4,7 +4,7 @@
  * across Ortenaukreis, provides tile proxy fetching, and Panoramax 360° fallback.
  */
 
-const { isPointInOrtenau } = require('../data/ortenauRegion');
+const { isPointInOrtenau } = require('../utils/geoUtils');
 
 const GOOGLE_SINGLE_IMAGE_SEARCH_URL =
   'https://maps.googleapis.com/$rpc/google.internal.maps.mapsjs.v1.MapsJsInternalService/SingleImageSearch';

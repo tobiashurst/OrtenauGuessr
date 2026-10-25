@@ -480,7 +480,7 @@ export async function renderReal360StreetView(locationData, onRetry, retryAttemp
 
   // Stage 1: Fast initial Zoom 2 (2048x1024, 8 tiles) stitch so the round opens in ~300ms
   if (img.panoId) {
-    dom.loadingSubtitle.textContent = `Stitching real 360° StreetView panorama in ${escapeHtml(locationData.municipality)}...`;
+    dom.loadingSubtitle.textContent = 'Stitching real 360° StreetView panorama...';
     try {
       const initialCanvas = await stitchGoogleStreetViewCanvas(
         img.panoId,

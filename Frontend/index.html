@@ -6,12 +6,12 @@
   <title>Ortenau Guesser — Baden-Württemberg StreetView Challenge</title>
   <meta name="description" content="A GeoGuessr-inspired singleplayer street-view geography game fixed explicitly to the Ortenau region (Ortenaukreis) in Baden-Württemberg, Germany, powered by OpenStreetMap." />
 
-  <!-- Google Fonts: Inter & Space Grotesk -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet" />
 
-  <!-- Leaflet OpenStreetMap CSS -->
+  <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -19,19 +19,17 @@
     crossorigin=""
   />
 
-  <!-- Pannellum 360° Equirectangular StreetView CSS -->
+  <!-- Pannellum CSS -->
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"
   />
 
-  <!-- Application Styles (Modular Architecture) -->
+  <!-- Styles -->
   <link rel="stylesheet" href="css/main.css" />
 </head>
 <body>
-  <!-- =====================================================================
-       1. MAIN MENU SCREEN (#main-menu)
-       ===================================================================== -->
+  <!-- Main Menu -->
   <section id="main-menu" class="screen active" aria-label="Main Menu">
     <div class="menu-backdrop">
       <div class="menu-gradient-orb orb-forest"></div>
@@ -41,18 +39,10 @@
     </div>
 
     <div class="menu-container">
-      <!-- Top Header Pill -->
-      <div class="menu-region-pill">
-        <span class="pill-dot"></span>
-        <span>Baden-Württemberg • Germany • OpenStreetMap Geoservices</span>
-      </div>
-
-      <!-- Hero Title & Crest -->
       <header class="menu-hero">
         <div class="crest-badge" aria-hidden="true">
-          <svg viewBox="0 0 64 64" width="54" height="54" fill="none">
+          <svg viewBox="0 0 64 64" width="48" height="48" fill="none">
             <path d="M10 8H54V34C54 47.5 32 57 32 57C32 57 10 47.5 10 34V8Z" fill="#0d2818" stroke="#e0b252" stroke-width="3"/>
-            <!-- Black Forest Pines & Rhine Waves -->
             <path d="M32 14L22 29H27L20 40H44L37 29H42L32 14Z" fill="#2dc653"/>
             <path d="M18 45C22 43 26 47 32 45C38 43 42 47 46 45" stroke="#48cae4" stroke-width="2.5" stroke-linecap="round"/>
           </svg>
@@ -61,42 +51,29 @@
           ORTENAU <span class="title-accent">GUESSER</span>
         </h1>
         <p class="menu-subtitle">
-          Dropped into a fixed point between the <strong>Rhine Valley</strong>, historic wine villages, and the peaks of the <strong>Black Forest</strong>. Look around 360° — no moving allowed — and pinpoint your location in the Ortenaukreis!
+          Explore the Ortenaukreis in 360°
         </p>
       </header>
 
-      <!-- Main Menu Grid: Left Controls + Right Region Preview Map -->
       <div class="menu-grid">
-        <!-- Game Mode & Action Card -->
         <div class="menu-card primary-card">
-          <div class="card-badge-row">
-            <span class="mode-tag">SINGLEPLAYER</span>
-            <span class="mode-tag tag-outline">FIXED POINT 360°</span>
-            <span class="mode-tag tag-osm">OSM LIVE</span>
-          </div>
+          <h2 class="card-heading">Game Mode</h2>
 
-          <h2 class="card-heading">Ortenaukreis Explorer</h2>
-          <p class="card-desc">
-            5 rounds across towns, valleys, and mountain passes in the Ortenau region — from Offenburg, Lahr, Kehl, Achern, and Oberkirch to Gengenbach, Sasbachwalden, and the Hornisgrinde.
-          </p>
-
-          <!-- Round Count Selector -->
           <div class="mode-selector" role="group" aria-label="Game Length">
             <button type="button" class="mode-option active" data-rounds="5" id="mode-standard-btn">
-              <span class="mode-option-title">Standard (5 Rounds)</span>
-              <span class="mode-option-sub">Up to 25,000 pts</span>
+              <span class="mode-option-title">Standard</span>
+              <span class="mode-option-sub">5 rounds</span>
             </button>
             <button type="button" class="mode-option" data-rounds="5" id="mode-timed-btn">
-              <span class="mode-option-title">Timed Mode (5 Rounds)</span>
+              <span class="mode-option-title">Timed</span>
               <span class="mode-option-sub">Beat the clock</span>
             </button>
             <button type="button" class="mode-option" data-rounds="0" id="mode-freeplay-btn">
-              <span class="mode-option-title">Endless Free Play</span>
-              <span class="mode-option-sub">Unlimited drops in Ortenau</span>
+              <span class="mode-option-title">Free Play</span>
+              <span class="mode-option-sub">Endless rounds</span>
             </button>
           </div>
 
-          <!-- Time Limit Slider (Hidden by default) -->
           <div id="time-limit-container" class="time-limit-container hidden">
             <label for="time-limit-slider" class="time-limit-label">
               Time per round: <span id="time-limit-display">60</span> seconds
@@ -104,13 +81,12 @@
             <input type="range" id="time-limit-slider" name="time-limit-slider" min="5" max="60" value="60" step="5" class="time-limit-slider" />
           </div>
 
-          <!-- Primary CTA Buttons -->
           <div class="menu-actions">
             <button type="button" id="start-game-btn" class="btn btn-primary btn-lg">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5v14l11-7z" />
               </svg>
-              <span>Start Game in Ortenau</span>
+              <span>Start Game</span>
             </button>
             <button type="button" id="how-to-play-btn" class="btn btn-secondary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -118,53 +94,17 @@
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
-              <span>Game Rules</span>
+              <span>How to Play</span>
             </button>
           </div>
-
-          <!-- Key Game Rules Checklist -->
-          <ul class="rules-mini-list">
-            <li>
-              <span class="check-icon">✓</span>
-              <span><strong>Fixed-Point 360° View:</strong> Pan, tilt, and zoom freely around your drop point — movement is locked.</span>
-            </li>
-            <li>
-              <span class="check-icon">✓</span>
-              <span><strong>Strictly Ortenau Region:</strong> Every drop &amp; map boundary is restricted to Ortenaukreis, Baden-Württemberg.</span>
-            </li>
-            <li>
-              <span class="check-icon">✓</span>
-              <span><strong>Bottom-Right OpenStreetMap:</strong> Place your pin and submit to reveal the real distance in meters / km.</span>
-            </li>
-          </ul>
         </div>
 
-        <!-- Region Preview Card with Live OpenStreetMap of Ortenau -->
         <div class="menu-card preview-card">
           <div class="preview-header">
-            <div>
-              <span class="preview-label">ACTIVE PLAY BOUNDARY</span>
-              <h3 class="preview-title">Ortenaukreis (48.18°N–48.72°N, 7.75°E–8.35°E)</h3>
-            </div>
-            <span id="api-status-badge" class="status-badge status-online">OSM Ready</span>
+            <h3 class="preview-title">Ortenaukreis</h3>
           </div>
 
           <div id="menu-preview-map" class="menu-preview-map" aria-label="Ortenau Region Map Preview"></div>
-
-          <div class="preview-stats-grid">
-            <div class="preview-stat">
-              <span class="stat-label">Area</span>
-              <span class="stat-value">1,860 km²</span>
-            </div>
-            <div class="preview-stat">
-              <span class="stat-label">Municipalities</span>
-              <span class="stat-value">51 Towns</span>
-            </div>
-            <div class="preview-stat">
-              <span class="stat-label">Geoservice</span>
-              <span class="stat-value">OpenStreetMap</span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

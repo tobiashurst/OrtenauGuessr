@@ -253,6 +253,13 @@
   gap: 0.25rem;
 }
 
+.stat-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
 .stat-big {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1.45rem;
